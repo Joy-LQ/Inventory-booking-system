@@ -1,16 +1,10 @@
 {
   "version": 2,
   "name": "property-booking-system",
-  "buildCommand": "echo 'No build needed'",
-  "outputDirectory": ".",
   "builds": [
     {
       "src": "index.html",
       "use": "@vercel/static"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
