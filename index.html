@@ -656,14 +656,43 @@
             }
         }
 
-        // 发送确认邮件
-        function sendConfirmationEmail(booking, isModification = false) {
-            const emailType = isModification ? 'modification' : 'confirmation';
+        // 发送确认邮件 - 真实版本
+        async function sendConfirmationEmail(booking, isModification = false) {
             const subject = isModification ? 
                 `Booking Time Modified | 预约时间已修改 - ${booking.orderNumber}` : 
                 `Booking Confirmed | 预约已确认 - ${booking.orderNumber}`;
-            
-            const emailContent = `
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: subject,
+                        bookingData: {
+                            type: 'confirmation',
+                            booking: booking,
+                            isModification: isModification
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${isModification ? 'Modification notification' : 'Confirmation'} email sent successfully to ${booking.email} | ${isModification ? '修改通知' : '确认'}邮件已成功发送至 ${booking.email}`);
+                    console.log('邮件发送成功:', result);
+                } else {
+                    throw new Error(result.error || 'Failed to send email');
+                }
+            } catch (error) {
+                console.error('邮件发送失败:', error);
+                alert(`❌ Failed to send email | 邮件发送失败: ${error.message}`);
+                
+                // 降级到模拟邮件
+                const emailContent = `
 Dear ${booking.customerName} | 亲爱的 ${booking.customerName}，
 
 ${isModification ? 
@@ -677,41 +706,62 @@ Booking Details | 预约详情：
 - Address | 地址: ${booking.address}
 - Key Arrangement | 钥匙安排: ${booking.keyArrangement}
 
-${booking.notes ? `Notes | 备注: ${booking.notes}` : ''}
-
-Thank you for choosing our service! | 感谢您选择我们的服务！
-
 Best regards | 此致敬礼
 Property Inspection Team | 房产检查团队
-            `;
-
-            // 模拟邮件发送（在实际环境中，这里会调用真实的邮件API）
-            console.log('Email Subject:', subject);
-            console.log('Email Content:', emailContent);
-            
-            alert(`${isModification ? 'Modification notification' : 'Confirmation'} email sent to ${booking.email} | ${isModification ? '修改通知' : '确认'}邮件已发送至 ${booking.email}`);
+                `;
+                console.log('备用邮件内容:', emailContent);
+            }
         }
 
-        // 发送取消邮件
-        function sendCancellationEmail(booking) {
-            const emailContent = `
+        // 发送取消邮件 - 真实版本
+        async function sendCancellationEmail(booking) {
+            const subject = `Booking Cancelled | 预约已取消 - ${booking.orderNumber}`;
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: subject,
+                        bookingData: {
+                            type: 'cancellation',
+                            booking: booking,
+                            isModification: false
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ Cancellation email sent successfully to ${booking.email} | 取消通知邮件已成功发送至 ${booking.email}`);
+                    console.log('取消邮件发送成功:', result);
+                } else {
+                    throw new Error(result.error || 'Failed to send email');
+                }
+            } catch (error) {
+                console.error('取消邮件发送失败:', error);
+                alert(`❌ Failed to send cancellation email | 取消邮件发送失败: ${error.message}`);
+                
+                // 降级到模拟邮件
+                const emailContent = `
 Dear ${booking.customerName} | 亲爱的 ${booking.customerName}，
 
 Your booking has been cancelled. | 您的预约已被取消。
 
-Booking Details | 预约详情：
+Original Booking Details | 原预约详情：
 - Order Number | 订单号: ${booking.orderNumber}
 - Service Type | 服务类型: ${booking.serviceType}
-- Original Date & Time | 原定日期时间: ${booking.preferredDate} ${booking.preferredTimeSlot}
-
-If you have any questions, please contact us. | 如有疑问，请联系我们。
+- Date & Time | 日期时间: ${booking.preferredDate} ${booking.preferredTimeSlot}
 
 Best regards | 此致敬礼
 Property Inspection Team | 房产检查团队
-            `;
-            
-            console.log('Cancellation Email:', emailContent);
-            alert(`Cancellation email sent to ${booking.email} | 取消通知邮件已发送至 ${booking.email}`);
+                `;
+                console.log('备用取消邮件内容:', emailContent);
+            }
         }
 
         // 更新设置
