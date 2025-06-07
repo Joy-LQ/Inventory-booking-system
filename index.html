@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房产检查预约系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 30%, #f59e0b 70%, #fbbf24 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4);
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.5);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+        }
+        .nav-active {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4);
+        }
+        .nav-inactive {
+            background: rgba(255, 255, 255, 0.2);
+            color: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .nav-inactive:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+        .time-slot-available {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .time-slot-available:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        .time-slot-booked {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: #374151;
+            cursor: not-allowed;
+        }
+        .time-slot-selected {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            color: white;
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+            transform: scale(1.05);
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #1e3a8a 0%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .admin-bg {
+            background: rgba(248, 250, 252, 0.95);
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="glass-effect sticky top-0 z-50 mb-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-16 py-4 sm:py-0">
+                <div class="flex items-center mb-4 sm:mb-0">
+                    <h1 class="text-2xl sm:text-3xl font-bold gradient-text">🏠 房产检查预约系统</h1>
+                </div>
+                <div class="flex space-x-3">
+                    <button id="customerTab" class="nav-active px-4 py-2 rounded-lg font-semibold transition-all">
+                        客户预约
+                    </button>
+                    <button id="adminTab" class="nav-inactive px-4 py-2 rounded-lg font-semibold transition-all">
+                        后台管理
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- 客户预约视图 -->
+        <div id="customerView">
+            <!-- 欢迎区域 -->
+            <div class="text-center mb-8 fade-in">
+                <div class="glass-effect p-6 sm:p-8 rounded-2xl shadow-xl card-hover">
+                    <h2 class="text-2xl sm:text-4xl font-bold mb-4 gradient-text">✨ 专业房产检查服务</h2>
+                    <p id="welcomeText" class="text-lg sm:text-xl text-gray-700 leading-relaxed">
+                        欢迎使用房产检查预约系统！我们提供专业、贴心的房产检查服务。
+                    </p>
+                </div>
+            </div>
+
+            <!-- 步骤1：基本信息 -->
+            <div id="step1">
+                <div class="glass-effect rounded-2xl p-6 sm:p-8 shadow-xl card-hover">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-6 gradient-text">📝 基本信息</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                姓名 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="customerName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请输入您的姓名">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                手机号 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" id="phone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请输入手机号">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                邮箱 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="email" id="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请输入邮箱地址">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                邮编
+                            </label>
+                            <input type="text" id="postcode" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请输入邮编">
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                房产地址 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="address" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请输入详细地址">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                服务类型 <span class="text-red-500">*</span>
+                            </label>
+                            <select id="serviceType" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <option value="期中检查">期中检查</option>
+                                <option value="期末检查">期末检查</option>
+                                <option value="实地看房">实地看房</option>
+                                <option value="连线看房">连线看房</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                钥匙安排 <span class="text-red-500">*</span>
+                            </label>
+                            <select id="keyArrangement" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <option value="客户保留">客户保留</option>
+                                <option value="交给检查员">交给检查员</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+
+                        <!-- 钥匙安排其他选项的说明 -->
+                        <div id="keyOtherSection" style="display: none;" class="lg:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                钥匙安排说明 <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="keyOtherDetails" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="请详细说明钥匙的具体安排">
+                        </div>
+                    </div>
+
+                    <div class="mt-8 text-center">
+                        <button id="nextStepBtn" class="btn-primary text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold text-lg">
+                            下一步：选择时间 →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤2：选择时间 -->
+            <div id="step2" style="display: none;">
+                <div class="glass-effect rounded-2xl p-6 sm:p-8 shadow-xl card-hover fade-in">
+                    <h3 class="text-xl sm:text-2xl font-bold mb-6 gradient-text">📅 选择预约时间</h3>
+                    
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-4">
+                            选择日期 <span class="text-red-500">*</span>
+                        </label>
+                        <div id="dateGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <!-- 日期选项 -->
+                        </div>
+                    </div>
+
+                    <div id="timeSlotSection" style="display: none;" class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-4">
+                            选择时间段 <span class="text-red-500">*</span>
+                        </label>
+                        <div id="timeSlotGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            <!-- 时间段选项 -->
+                        </div>
+                        
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                其他时间需求（非标准时段）
+                            </label>
+                            <textarea id="specialRequirements" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows="3" placeholder="如需其他时间安排，请在此说明（不保证能满足）"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            备注
+                        </label>
+                        <textarea id="notes" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows="3" placeholder="如有其他需要说明的事项，请在此填写"></textarea>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between gap-4">
+                        <button id="prevStepBtn" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all">
+                            ← 上一步
+                        </button>
+                        <button id="submitBtn" class="btn-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold opacity-50 cursor-not-allowed" disabled>
+                            提交预约
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤3：确认页面 -->
+            <div id="step3" style="display: none;">
+                <div class="glass-effect rounded-2xl p-6 sm:p-8 shadow-xl text-center card-hover fade-in">
+                    <div class="text-4xl sm:text-6xl mb-6">✅</div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-green-600 mb-4">预约提交成功！</h2>
+                    
+                    <div class="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-6">
+                        <p class="text-lg text-green-800 mb-2">您的订单号是：</p>
+                        <p id="orderNumber" class="text-2xl sm:text-3xl font-bold text-green-900"></p>
+                        <p class="text-sm text-green-600 mt-2">请保存此订单号，以便后续查询</p>
+                    </div>
+
+                    <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6 text-left">
+                        <h3 class="font-bold text-blue-900 mb-3">预约详情：</h3>
+                        <div id="bookingDetails" class="space-y-2 text-blue-800">
+                            <!-- 预约详情 -->
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6 text-left">
+                        <h3 class="font-bold text-yellow-900 mb-3">📋 注意事项：</h3>
+                        <div id="noticeText" class="text-yellow-800 whitespace-pre-line">
+                            请注意：
+• 请确保预约时间准确无误
+• 如需取消或修改，请提前24小时联系
+• 检查当天请准备好相关文件
+• 如有特殊要求，请在备注中说明
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6 text-left">
+                        <h3 class="font-bold text-blue-900 mb-3">📢 重要提示：</h3>
+                        <div id="afterSubmitNotice" class="text-blue-800 whitespace-pre-line">
+                            我们会在24小时内与您确认预约详情。
+如有任何疑问，请随时联系我们。
+谢谢您的信任！
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button id="resetBtn" class="btn-secondary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold">
+                            预约其他服务
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理员视图 -->
+        <div id="adminView" style="display: none;">
+            <!-- 日历视图 -->
+            <div class="glass-effect rounded-2xl p-6 shadow-xl card-hover mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold gradient-text">📅 预约日历</h3>
+                    <div class="flex items-center space-x-2 mt-4 sm:mt-0">
+                        <button id="prevMonth" class="btn-primary text-white px-3 py-2 rounded-lg text-sm">‹</button>
+                        <span id="currentMonthYear" class="text-lg font-semibold mx-4 text-gray-700"></span>
+                        <button id="nextMonth" class="btn-primary text-white px-3 py-2 rounded-lg text-sm">›</button>
+                    </div>
+                </div>
+                <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                    <!-- 日历网格 -->
+                </div>
+            </div>
+
+            <!-- 后台管理标签页 -->
+            <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+                <button id="ordersTabBtn" class="flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active">
+                    📋 订单管理
+                </button>
+                <button id="settingsTabBtn" class="flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive">
+                    ⚙️ 系统设置
+                </button>
+            </div>
+
+            <!-- 订单管理 -->
+            <div id="ordersTab" class="glass-effect rounded-2xl p-6 shadow-xl card-hover">
+                <h3 class="text-xl font-bold gradient-text mb-6">订单管理</h3>
+                <div id="ordersList">
+                    <p class="text-center text-gray-500 py-8">正在加载订单数据...</p>
+                </div>
+            </div>
+
+            <!-- 系统设置 -->
+            <div id="settingsTab" style="display: none;" class="glass-effect rounded-2xl p-6 shadow-xl card-hover">
+                <h3 class="text-xl font-bold gradient-text mb-6">系统设置</h3>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            客户端欢迎信息
+                        </label>
+                        <textarea id="welcomeMessageInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows="3">欢迎使用房产检查预约系统！我们提供专业、贴心的房产检查服务。</textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            提交后注意事项
+                        </label>
+                        <textarea id="noticeMessageInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows="6">请注意：
+• 请确保预约时间准确无误
+• 如需取消或修改，请提前24小时联系
+• 检查当天请准备好相关文件
+• 如有特殊要求，请在备注中说明</textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            提交后重要提示
+                        </label>
+                        <textarea id="afterSubmitNoticeInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" rows="4">我们会在24小时内与您确认预约详情。
+如有任何疑问，请随时联系我们。
+谢谢您的信任！</textarea>
+                    </div>
+
+                    <button id="saveSettingsBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                        保存设置
+                    </button>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-medium text-blue-900 mb-2">📊 数据统计</h4>
+                        <div id="statsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <!-- 统计数据 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 应用数据
+        const appData = {
+            bookings: [
+                {
+                    id: 1,
+                    orderNumber: 'INV-JOYA-001',
+                    customerName: '张三',
+                    phone: '13800138000',
+                    email: 'zhang@example.com',
+                    address: '曼城市中心公寓 123号',
+                    postcode: 'M1 1AA',
+                    serviceType: '期末检查',
+                    preferredDate: '2025-06-15',
+                    preferredTimeSlot: '10:00-11:30',
+                    keyArrangement: '交给检查员',
+                    specialRequirements: '',
+                    notes: '需要检查厨房水管',
+                    status: 'confirmed',
+                    createdAt: '2025-06-07T10:30:00Z'
+                }
+            ],
+            settings: {
+                welcomeMessage: '欢迎使用房产检查预约系统！我们提供专业、贴心的房产检查服务。',
+                noticeMessage: '请注意：\n• 请确保预约时间准确无误\n• 如需取消或修改，请提前24小时联系\n• 检查当天请准备好相关文件\n• 如有特殊要求，请在备注中说明',
+                afterSubmitNotice: '我们会在24小时内与您确认预约详情。\n如有任何疑问，请随时联系我们。\n谢谢您的信任！'
+            },
+            nextOrderNumber: 2,
+            selectedDate: '',
+            selectedTimeSlot: '',
+            currentCalendarDate: new Date()
+        };
+
+        // 获取元素
+        const customerTab = document.getElementById('customerTab');
+        const adminTab = document.getElementById('adminTab');
+        const customerView = document.getElementById('customerView');
+        const adminView = document.getElementById('adminView');
+
+        // 视图切换
+        function showCustomerView() {
+            customerView.style.display = 'block';
+            adminView.style.display = 'none';
+            customerTab.className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+            adminTab.className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+        }
+
+        function showAdminView() {
+            const password = prompt('请输入管理员密码:');
+            if (password === 'admin123') {
+                customerView.style.display = 'none';
+                adminView.style.display = 'block';
+                adminTab.className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+                customerTab.className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+                
+                // 初始化后台管理
+                generateCalendar();
+                showOrdersTab();
+            } else if (password !== null) {
+                alert('密码错误！');
+            }
+        }
+
+        // 步骤控制
+        function showStep(stepNumber) {
+            document.getElementById('step1').style.display = stepNumber === 1 ? 'block' : 'none';
+            document.getElementById('step2').style.display = stepNumber === 2 ? 'block' : 'none';
+            document.getElementById('step3').style.display = stepNumber === 3 ? 'block' : 'none';
+        }
+
+        // 验证第一步
+        function validateStep1() {
+            const required = ['customerName', 'phone', 'email', 'address', 'serviceType', 'keyArrangement'];
+            for (const field of required) {
+                if (!document.getElementById(field).value.trim()) {
+                    alert('请填写所有必填字段！');
+                    return false;
+                }
+            }
+            
+            // 如果选择了"其他"钥匙安排，需要填写详细说明
+            if (document.getElementById('keyArrangement').value === '其他') {
+                if (!document.getElementById('keyOtherDetails').value.trim()) {
+                    alert('请详细说明钥匙的具体安排！');
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        // 生成可用日期
+        function generateAvailableDates() {
+            const dates = [];
+            const today = new Date();
+            
+            for (let i = 1; i <= 30; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                
+                if (date.getDay() >= 1 && date.getDay() <= 5) {
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+            }
+            return dates;
+        }
+
+        // 检查时间段是否被预约
+        function isTimeSlotBooked(date, timeSlot) {
+            return appData.bookings.some(booking => 
+                booking.preferredDate === date && 
+                booking.preferredTimeSlot === timeSlot &&
+                booking.status === 'confirmed'
+            );
+        }
+
+        // 生成日期网格
+        function generateDateGrid() {
+            const dates = generateAvailableDates();
+            const dateGrid = document.getElementById('dateGrid');
+            dateGrid.innerHTML = '';
+
+            dates.slice(0, 12).forEach(date => {
+                // 检查这个日期是否还有可用时间段
+                const timeSlots = ['10:00-11:30', '11:30-13:00', '13:00-14:30'];
+                const hasAvailableSlots = timeSlots.some(slot => !isTimeSlotBooked(date, slot));
+                
+                if (hasAvailableSlots) {
+                    const dateObj = new Date(date);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-gray-200 hover:border-blue-300 hover:bg-blue-50 bg-white';
+                    
+                    button.addEventListener('click', function() {
+                        selectDate(date, this);
+                    });
+                    
+                    button.innerHTML = `
+                        <div class="text-sm font-medium">
+                            ${dateObj.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${dateObj.toLocaleDateString('zh-CN', { weekday: 'short' })}
+                        </div>
+                    `;
+                    dateGrid.appendChild(button);
+                }
+            });
+        }
+
+        // 选择日期
+        function selectDate(date, button) {
+            // 重置所有日期按钮样式
+            document.querySelectorAll('#dateGrid button').forEach(btn => {
+                btn.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-gray-200 hover:border-blue-300 hover:bg-blue-50 bg-white';
+            });
+
+            // 设置选中状态
+            button.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-orange-500 bg-orange-50 text-orange-700';
+            appData.selectedDate = date;
+            appData.selectedTimeSlot = '';
+            
+            generateTimeSlotGrid();
+            document.getElementById('timeSlotSection').style.display = 'block';
+            updateSubmitButton();
+        }
+
+        // 生成时间段网格
+        function generateTimeSlotGrid() {
+            const timeSlots = ['10:00-11:30', '11:30-13:00', '13:00-14:30'];
+            const timeSlotGrid = document.getElementById('timeSlotGrid');
+            timeSlotGrid.innerHTML = '';
+
+            timeSlots.forEach(timeSlot => {
+                const isBooked = isTimeSlotBooked(appData.selectedDate, timeSlot);
+                const button = document.createElement('button');
+                button.type = 'button';
+                
+                if (isBooked) {
+                    button.className = 'time-slot-booked p-4 rounded-lg font-medium transition-all';
+                    button.disabled = true;
+                    button.innerHTML = `
+                        <div class="text-lg">${timeSlot}</div>
+                        <div class="text-sm mt-1">已预约</div>
+                    `;
+                } else {
+                    button.className = 'time-slot-available p-4 rounded-lg font-medium transition-all';
+                    button.addEventListener('click', function() {
+                        selectTimeSlot(timeSlot, this);
+                    });
+                    button.innerHTML = `
+                        <div class="text-lg">${timeSlot}</div>
+                        <div class="text-sm mt-1">可预约</div>
+                    `;
+                }
+                
+                timeSlotGrid.appendChild(button);
+            });
+        }
+
+        // 选择时间段
+        function selectTimeSlot(timeSlot, button) {
+            document.querySelectorAll('#timeSlotGrid button:not(:disabled)').forEach(btn => {
+                btn.className = 'time-slot-available p-4 rounded-lg font-medium transition-all';
+                btn.innerHTML = btn.innerHTML.replace('已选择', '可预约');
+            });
+
+            button.className = 'time-slot-selected p-4 rounded-lg font-medium transition-all';
+            button.innerHTML = `
+                <div class="text-lg">${timeSlot}</div>
+                <div class="text-sm mt-1">已选择</div>
+            `;
+            
+            appData.selectedTimeSlot = timeSlot;
+            updateSubmitButton();
+        }
+
+        // 更新提交按钮
+        function updateSubmitButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            if (appData.selectedDate && appData.selectedTimeSlot) {
+                submitBtn.disabled = false;
+                submitBtn.className = 'btn-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = 'btn-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold opacity-50 cursor-not-allowed';
+            }
+        }
+
+        // 提交预约
+        function submitBooking() {
+            const orderNum = appData.nextOrderNumber.toString().padStart(3, '0');
+            const newOrderNumber = `INV-JOYA-${orderNum}`;
+            appData.nextOrderNumber++;
+
+            let keyArrangement = document.getElementById('keyArrangement').value;
+            if (keyArrangement === '其他') {
+                keyArrangement = '其他：' + document.getElementById('keyOtherDetails').value;
+            }
+
+            const newBooking = {
+                id: Date.now(),
+                orderNumber: newOrderNumber,
+                customerName: document.getElementById('customerName').value,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                address: document.getElementById('address').value,
+                postcode: document.getElementById('postcode').value,
+                serviceType: document.getElementById('serviceType').value,
+                preferredDate: appData.selectedDate,
+                preferredTimeSlot: appData.selectedTimeSlot,
+                keyArrangement: keyArrangement,
+                specialRequirements: document.getElementById('specialRequirements').value,
+                notes: document.getElementById('notes').value,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            appData.bookings.push(newBooking);
+            
+            document.getElementById('orderNumber').textContent = newOrderNumber;
+            document.getElementById('bookingDetails').innerHTML = `
+                <p><strong>姓名：</strong>${newBooking.customerName}</p>
+                <p><strong>联系方式：</strong>${newBooking.phone}</p>
+                <p><strong>服务类型：</strong>${newBooking.serviceType}</p>
+                <p><strong>预约日期：</strong>${newBooking.preferredDate}</p>
+                <p><strong>预约时间：</strong>${newBooking.preferredTimeSlot}</p>
+                <p><strong>钥匙安排：</strong>${newBooking.keyArrangement}</p>
+            `;
+            
+            showStep(3);
+        }
+
+        // 重置表单
+        function resetForm() {
+            const fields = ['customerName', 'phone', 'email', 'address', 'postcode', 'specialRequirements', 'notes', 'keyOtherDetails'];
+            fields.forEach(field => {
+                if (document.getElementById(field)) {
+                    document.getElementById(field).value = '';
+                }
+            });
+            
+            // 重置下拉框为第一个选项
+            document.getElementById('serviceType').selectedIndex = 0;
+            document.getElementById('keyArrangement').selectedIndex = 0;
+            
+            // 隐藏钥匙其他选项区域
+            document.getElementById('keyOtherSection').style.display = 'none';
+            
+            appData.selectedDate = '';
+            appData.selectedTimeSlot = '';
+            document.getElementById('timeSlotSection').style.display = 'none';
+            
+            showStep(1);
+        }
+
+        // 生成日历
+        function generateCalendar() {
+            const year = appData.currentCalendarDate.getFullYear();
+            const month = appData.currentCalendarDate.getMonth();
+            
+            // 更新月份年份显示
+            document.getElementById('currentMonthYear').textContent = 
+                `${year}年${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+            
+            // 添加星期标题
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            weekDays.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'text-center font-semibold text-gray-600 p-2';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+            
+            // 生成日历格子
+            for (let i = 0; i < 42; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'relative p-2 text-center border border-gray-100 rounded min-h-[60px] flex flex-col justify-center';
+                
+                const isCurrentMonth = currentDate.getMonth() === month;
+                const dateString = currentDate.toISOString().split('T')[0];
+                const hasBookings = appData.bookings.some(booking => 
+                    booking.preferredDate === dateString && booking.status === 'confirmed'
+                );
+                
+                if (isCurrentMonth) {
+                    dayElement.className += ' bg-white text-gray-900';
+                    if (hasBookings) {
+                        dayElement.className += ' bg-blue-100 border-blue-300';
+                    }
+                } else {
+                    dayElement.className += ' bg-gray-50 text-gray-400';
+                }
+                
+                dayElement.innerHTML = `
+                    <div class="text-sm font-medium">${currentDate.getDate()}</div>
+                    ${hasBookings ? '<div class="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-1"></div>' : ''}
+                `;
+                
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        // 管理员标签页切换
+        function showOrdersTab() {
+            document.getElementById('ordersTab').style.display = 'block';
+            document.getElementById('settingsTab').style.display = 'none';
+            document.getElementById('ordersTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active';
+            document.getElementById('settingsTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive';
+            loadOrdersList();
+        }
+
+        function showSettingsTab() {
+            document.getElementById('ordersTab').style.display = 'none';
+            document.getElementById('settingsTab').style.display = 'block';
+            document.getElementById('ordersTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive';
+            document.getElementById('settingsTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active';
+            
+            // 加载当前设置
+            document.getElementById('welcomeMessageInput').value = appData.settings.welcomeMessage;
+            document.getElementById('noticeMessageInput').value = appData.settings.noticeMessage;
+            document.getElementById('afterSubmitNoticeInput').value = appData.settings.afterSubmitNotice;
+            updateStats();
+        }
+
+        // 加载订单列表
+        function loadOrdersList() {
+            const ordersList = document.getElementById('ordersList');
+            
+            if (appData.bookings.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-4xl mb-4">📋</div>
+                        <p class="text-gray-500">暂无订单</p>
+                    </div>
+                `;
+                return;
+            }
+
+            ordersList.innerHTML = appData.bookings.slice().reverse().map(booking => `
+                <div class="admin-bg rounded-lg p-4 mb-4 card-hover border border-gray-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-lg text-blue-900">${booking.orderNumber}</h4>
+                            <p class="text-gray-600">${booking.customerName} • ${booking.phone}</p>
+                        </div>
+                        <span class="mt-2 sm:mt-0 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(booking.status)}">
+                            ${getStatusLabel(booking.status)}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-gray-700"><strong>服务类型：</strong>${booking.serviceType}</p>
+                            <p class="text-gray-700"><strong>预约时间：</strong>${booking.preferredDate} ${booking.preferredTimeSlot}</p>
+                            <p class="text-gray-700"><strong>钥匙安排：</strong>${booking.keyArrangement}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-700"><strong>地址：</strong>${booking.address}</p>
+                            <p class="text-gray-700"><strong>邮箱：</strong>${booking.email}</p>
+                        </div>
+                    </div>
+
+                    ${booking.notes ? `
+                        <div class="mb-4">
+                            <p class="text-gray-700"><strong>备注：</strong></p>
+                            <p class="text-gray-600 bg-gray-100 p-2 rounded">${booking.notes}</p>
+                        </div>
+                    ` : ''}
+
+                    ${booking.status === 'pending' ? `
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button data-booking-id="${booking.id}" class="confirm-btn btn-primary text-white px-4 py-2 rounded-lg text-sm">
+                                确认预约
+                            </button>
+                            <button data-booking-id="${booking.id}" class="cancel-btn bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-all">
+                                取消预约
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            // 重新绑定按钮事件
+            document.querySelectorAll('.confirm-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    confirmBooking(bookingId);
+                });
+            });
+            
+            document.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    cancelBooking(bookingId);
+                });
+            });
+        }
+
+        // 获取状态样式类
+        function getStatusBadgeClass(status) {
+            const classes = {
+                pending: 'bg-yellow-100 text-yellow-800',
+                confirmed: 'bg-green-100 text-green-800',
+                completed: 'bg-blue-100 text-blue-800',
+                cancelled: 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || classes.pending;
+        }
+
+        // 获取状态标签
+        function getStatusLabel(status) {
+            const labels = {
+                pending: '待确认',
+                confirmed: '已确认',
+                completed: '已完成',
+                cancelled: '已取消'
+            };
+            return labels[status] || '待确认';
+        }
+
+        // 确认预约
+        function confirmBooking(bookingId) {
+            const booking = appData.bookings.find(b => b.id === bookingId);
+            if (booking) {
+                booking.status = 'confirmed';
+                loadOrdersList();
+                generateCalendar(); // 更新日历显示
+                alert(`订单 ${booking.orderNumber} 已确认，系统已发送确认邮件给客户。`);
+            }
+        }
+
+        // 取消预约
+        function cancelBooking(bookingId) {
+            if (confirm('确定要取消这个预约吗？')) {
+                const booking = appData.bookings.find(b => b.id === bookingId);
+                if (booking) {
+                    booking.status = 'cancelled';
+                    loadOrdersList();
+                    generateCalendar(); // 更新日历显示
+                }
+            }
+        }
+
+        // 更新设置
+        function updateSettings() {
+            appData.settings.welcomeMessage = document.getElementById('welcomeMessageInput').value;
+            appData.settings.noticeMessage = document.getElementById('noticeMessageInput').value;
+            appData.settings.afterSubmitNotice = document.getElementById('afterSubmitNoticeInput').value;
+            
+            // 更新客户端显示
+            document.getElementById('welcomeText').textContent = appData.settings.welcomeMessage;
+            document.getElementById('noticeText').textContent = appData.settings.noticeMessage;
+            document.getElementById('afterSubmitNotice').textContent = appData.settings.afterSubmitNotice;
+            
+            alert('设置已保存！');
+        }
+
+        // 更新统计数据
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const totalBookings = appData.bookings.length;
+            const pendingBookings = appData.bookings.filter(b => b.status === 'pending').length;
+            const confirmedBookings = appData.bookings.filter(b => b.status === 'confirmed').length;
+            const completedBookings = appData.bookings.filter(b => b.status === 'completed').length;
+
+            statsGrid.innerHTML = `
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-blue-900">${totalBookings}</div>
+                    <div class="text-sm text-blue-700">总订单</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-yellow-600">${pendingBookings}</div>
+                    <div class="text-sm text-yellow-700">待确认</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-green-600">${confirmedBookings}</div>
+                    <div class="text-sm text-green-700">已确认</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-blue-600">${completedBookings}</div>
+                    <div class="text-sm text-blue-700">已完成</div>
+                </div>
+            `;
+        }
+
+        // 事件绑定
+        function bindEvents() {
+            // 导航按钮
+            customerTab.addEventListener('click', showCustomerView);
+            adminTab.addEventListener('click', showAdminView);
+
+            // 步骤控制按钮
+            document.getElementById('nextStepBtn').addEventListener('click', function() {
+                if (validateStep1()) {
+                    showStep(2);
+                    generateDateGrid();
+                }
+            });
+
+            document.getElementById('prevStepBtn').addEventListener('click', function() {
+                showStep(1);
+            });
+
+            document.getElementById('submitBtn').addEventListener('click', submitBooking);
+            document.getElementById('resetBtn').addEventListener('click', resetForm);
+
+            // 钥匙安排变化监听
+            document.getElementById('keyArrangement').addEventListener('change', function() {
+                const keyOtherSection = document.getElementById('keyOtherSection');
+                if (this.value === '其他') {
+                    keyOtherSection.style.display = 'block';
+                } else {
+                    keyOtherSection.style.display = 'none';
+                    document.getElementById('keyOtherDetails').value = '';
+                }
+            });
+
+            // 日历导航按钮
+            document.getElementById('prevMonth').addEventListener('click', function() {
+                appData.currentCalendarDate.setMonth(appData.currentCalendarDate.getMonth() - 1);
+                generateCalendar();
+            });
+
+            document.getElementById('nextMonth').addEventListener('click', function() {
+                appData.currentCalendarDate.setMonth(appData.currentCalendarDate.getMonth() + 1);
+                generateCalendar();
+            });
+
+            // 后台管理标签切换
+            document.getElementById('ordersTabBtn').addEventListener('click', showOrdersTab);
+            document.getElementById('settingsTabBtn').addEventListener('click', showSettingsTab);
+
+            // 保存设置按钮
+            document.getElementById('saveSettingsBtn').addEventListener('click', updateSettings);
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            bindEvents();
+            showCustomerView();
+            
+            // 设置默认选项
+            document.getElementById('serviceType').selectedIndex = 0;
+            document.getElementById('keyArrangement').selectedIndex = 0;
+        });
+    </script>
+</body>
+</html>
