@@ -1,3 +1,8 @@
+        // 应用数据
+        const appData = {
+            bookings: [],
+            settings: {
+                welcomeMessage: 'Welcome to our property inspection booking system! We provide professional and caring property inspection services.',
                 noticeMessage: 'Please note:\n• Please ensure the appointment time is accurate\n• For cancellations or modifications, please contact us 24 hours in advance\n• Please prepare relevant documents on the inspection day\n• If you have special requirements, please specify in the remarks\n\n请注意：\n• 请确保预约时间准确无误\n• 如需取消或修改，请提前24小时联系\n• 检查当天请准备好相关文件\n• 如有特殊要求，请在备注中说明',
                 afterSubmitNotice: 'We will confirm your appointment details within 24 hours.\nIf you have any questions, please contact us anytime.\nThank you for your trust!\n\n我们会在24小时内与您确认预约详情。\n如有任何疑问，请随时联系我们。\n谢谢您的信任！'
             },
@@ -58,33 +63,6 @@
                         appData.nextOrderNumber = data.nextOrderNumber || 1;
                         
                         console.log(`✅ 成功加载 ${appData.bookings.length} 个订单`);
-                        
-                        // 如果是首次使用且没有数据，添加示例
-                        if (appData.bookings.length === 0) {
-                            console.log('📝 初始化示例数据...');
-                            appData.bookings.push({
-                                id: 1,
-                                orderNumber: 'INV-InventoryHub-001',
-                                customerName: '张三',
-                                phone: '13800138000',
-                                email: 'zhang@example.com',
-                                address: '曼城市中心公寓 123号',
-                                postcode: 'M1 1AA',
-                                serviceType: 'Final Inspection | 期末检查',
-                                preferredDate: '2025-06-15',
-                                preferredTimeSlot: '10:00-11:30',
-                                keyArrangement: 'Handover to Inspector | 交给检查员',
-                                specialRequirements: '',
-                                notes: '需要检查厨房水管',
-                                status: 'confirmed',
-                                createdAt: '2025-06-07T10:30:00Z'
-                            });
-                            appData.nextOrderNumber = 2;
-                            
-                            // 保存示例数据到云端
-                            await saveToCloud();
-                        }
-                        
                         return true;
                     }
                 } else {
@@ -97,8 +75,9 @@
             }
         }
 
-        // 💾 本地备份存储函数
-        function saveToLocal() {
+        // 💾 智能数据保存函数（云端优先，本地备份）
+        async function saveData() {
+            // 先保存到本地作为备份
             try {
                 const dataToSave = {
                     bookings: appData.bookings,
@@ -111,33 +90,6 @@
             } catch (error) {
                 console.error('❌ 本地备份失败:', error);
             }
-        }
-
-        // 📂 本地备份加载函数
-        function loadFromLocal() {
-            try {
-                const saved = localStorage.getItem('propertyBookingData');
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    appData.bookings = data.bookings || [];
-                    appData.nextOrderNumber = data.nextOrderNumber || 1;
-                    if (data.settings) {
-                        appData.settings = { ...appData.settings, ...data.settings };
-                    }
-                    console.log('💾 本地备份数据已加载');
-                    return true;
-                }
-                return false;
-            } catch (error) {
-                console.error('❌ 本地备份加载失败:', error);
-                return false;
-            }
-        }
-
-        // 🔄 智能数据保存函数（云端优先，本地备份）
-        async function saveData() {
-            // 先保存到本地作为备份
-            saveToLocal();
             
             // 尝试保存到云端
             const cloudSuccess = await saveToCloud();
@@ -146,7 +98,6 @@
                 console.log('🎉 数据已成功保存到云端并本地备份');
             } else {
                 console.log('⚠️ 云端保存失败，但本地备份已保存');
-                alert('网络连接问题，数据已保存到本地备份。请稍后刷新页面同步到云端。');
             }
         }
 
@@ -159,13 +110,19 @@
             
             if (!cloudSuccess) {
                 console.log('⚠️ 云端加载失败，尝试本地备份...');
-                const localSuccess = loadFromLocal();
-                
-                if (!localSuccess) {
-                    console.log('📝 没有找到任何数据，使用默认设置');
-                    // 初始化默认数据
-                    appData.bookings = [];
-                    appData.nextOrderNumber = 1;
+                try {
+                    const saved = localStorage.getItem('propertyBookingData');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        appData.bookings = data.bookings || [];
+                        appData.nextOrderNumber = data.nextOrderNumber || 1;
+                        if (data.settings) {
+                            appData.settings = { ...appData.settings, ...data.settings };
+                        }
+                        console.log('💾 本地备份数据已加载');
+                    }
+                } catch (error) {
+                    console.error('❌ 本地备份加载失败:', error);
                 }
             }
             
@@ -174,37 +131,22 @@
 
         // 视图切换
         function showCustomerView() {
-            const customerView = document.getElementById('customerView');
-            const adminView = document.getElementById('adminView');
-            const customerTab = document.getElementById('customerTab');
-            const adminTab = document.getElementById('adminTab');
-
-            if (customerView) customerView.style.display = 'block';
-            if (adminView) adminView.style.display = 'none';
-            if (customerTab) customerTab.className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
-            if (adminTab) adminTab.className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+            document.getElementById('customerView').style.display = 'block';
+            document.getElementById('adminView').style.display = 'none';
+            document.getElementById('customerTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+            document.getElementById('adminTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
         }
 
         function showAdminView() {
             const password = prompt('Please enter admin password | 请输入管理员密码:');
             if (password === 'admin123') {
-                const customerView = document.getElementById('customerView');
-                const adminView = document.getElementById('adminView');
-                const customerTab = document.getElementById('customerTab');
-                const adminTab = document.getElementById('adminTab');
-
-                if (customerView) customerView.style.display = 'none';
-                if (adminView) adminView.style.display = 'block';
-                if (adminTab) adminTab.className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
-                if (customerTab) customerTab.className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+                document.getElementById('customerView').style.display = 'none';
+                document.getElementById('adminView').style.display = 'block';
+                document.getElementById('adminTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+                document.getElementById('customerTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
                 
-                // 初始化后台管理
-                try {
-                    generateCalendar();
-                    showOrdersTab();
-                } catch (error) {
-                    console.error('后台初始化出错:', error);
-                }
+                generateCalendar();
+                showOrdersTab();
             } else if (password !== null) {
                 alert('Incorrect password! | 密码错误！');
             }
@@ -227,7 +169,6 @@
                 }
             }
             
-            // 如果选择了"其他"钥匙安排，需要填写详细说明
             if (document.getElementById('keyArrangement').value === 'Other | 其他') {
                 if (!document.getElementById('keyOtherDetails').value.trim()) {
                     alert('Please specify the key arrangement details! | 请详细说明钥匙的具体安排！');
@@ -270,7 +211,6 @@
             dateGrid.innerHTML = '';
 
             dates.slice(0, 12).forEach(date => {
-                // 检查这个日期是否还有可用时间段
                 const timeSlots = ['10:00-11:30', '11:30-13:00', '13:00-14:30'];
                 const hasAvailableSlots = timeSlots.some(slot => !isTimeSlotBooked(date, slot));
                 
@@ -299,12 +239,10 @@
 
         // 选择日期
         function selectDate(date, button) {
-            // 重置所有日期按钮样式
             document.querySelectorAll('#dateGrid button').forEach(btn => {
                 btn.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-gray-200 hover:border-blue-300 hover:bg-blue-50 bg-white';
             });
 
-            // 设置选中状态
             button.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-orange-500 bg-orange-50 text-orange-700';
             appData.selectedDate = date;
             appData.selectedTimeSlot = '';
@@ -406,7 +344,7 @@
             };
 
             appData.bookings.push(newBooking);
-            await saveData(); // 💾 保存新订单到云端和本地备份
+            await saveData();
             
             document.getElementById('orderNumber').textContent = newOrderNumber;
             document.getElementById('bookingDetails').innerHTML = `
@@ -430,11 +368,8 @@
                 }
             });
             
-            // 重置下拉框为第一个选项
             document.getElementById('serviceType').selectedIndex = 0;
             document.getElementById('keyArrangement').selectedIndex = 0;
-            
-            // 隐藏钥匙其他选项区域
             document.getElementById('keyOtherSection').style.display = 'none';
             
             appData.selectedDate = '';
@@ -444,12 +379,138 @@
             showStep(1);
         }
 
+        // 确认预约 - 修复版本
+        async function confirmBooking(bookingId) {
+            const booking = appData.bookings.find(b => b.id === bookingId);
+            if (booking) {
+                console.log('🔄 正在确认订单:', booking.orderNumber);
+                booking.status = 'confirmed';
+                await saveData();
+                loadOrdersList();
+                generateCalendar();
+                console.log('✅ 订单确认完成，已同步到云端');
+                await sendConfirmationEmail(booking, false);
+            }
+        }
+
+        // 取消预约 - 修复版本
+        async function cancelBooking(bookingId) {
+            if (confirm('Are you sure you want to cancel this booking? | 确定要取消这个预约吗？')) {
+                const booking = appData.bookings.find(b => b.id === bookingId);
+                if (booking) {
+                    console.log('🔄 正在取消订单:', booking.orderNumber);
+                    booking.status = 'cancelled';
+                    await saveData();
+                    loadOrdersList();
+                    generateCalendar();
+                    console.log('✅ 订单取消完成，已同步到云端');
+                    await sendCancellationEmail(booking);
+                }
+            }
+        }
+
+        // 删除预约 - 修复版本
+        async function deleteBooking(bookingId) {
+            if (confirm('Are you sure you want to delete this booking? This action cannot be undone. | 确定要删除这个预约吗？此操作无法撤销。')) {
+                const bookingIndex = appData.bookings.findIndex(b => b.id === bookingId);
+                if (bookingIndex !== -1) {
+                    const booking = appData.bookings[bookingIndex];
+                    console.log('🔄 正在删除订单:', booking.orderNumber);
+                    appData.bookings.splice(bookingIndex, 1);
+                    await saveData();
+                    loadOrdersList();
+                    generateCalendar();
+                    console.log('✅ 订单删除完成，已同步到云端');
+                    alert('Booking deleted successfully. | 预约已成功删除。');
+                }
+            }
+        }
+
+        // 发送确认邮件 - 修复版本
+        async function sendConfirmationEmail(booking, isModification = false) {
+            const subject = isModification ? 
+                `Booking Time Modified | 预约时间已修改 - ${booking.orderNumber}` : 
+                `Booking Confirmed | 预约已确认 - ${booking.orderNumber}`;
+
+            console.log('🚀 开始发送邮件...', { to: booking.email, subject: subject });
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: subject,
+                        bookingData: {
+                            type: 'confirmation',
+                            booking: booking,
+                            isModification: isModification
+                        }
+                    })
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        alert(`✅ ${isModification ? 'Modification notification' : 'Confirmation'} email sent successfully!`);
+                    } else {
+                        throw new Error(`API Error: ${result.error || 'Unknown error'}`);
+                    }
+                } else {
+                    const text = await response.text();
+                    console.error('❌ 非JSON响应:', text.substring(0, 200));
+                    throw new Error(`API返回非JSON响应 (状态: ${response.status})`);
+                }
+            } catch (error) {
+                console.error('❌ 邮件发送失败:', error);
+                alert(`❌ Failed to send email: ${error.message}\n\nThe booking is still saved successfully.`);
+            }
+        }
+
+        // 发送取消邮件 - 修复版本
+        async function sendCancellationEmail(booking) {
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: `Booking Cancelled | 预约已取消 - ${booking.orderNumber}`,
+                        bookingData: {
+                            type: 'cancellation',
+                            booking: booking,
+                            isModification: false
+                        }
+                    })
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        alert(`✅ Cancellation email sent successfully!`);
+                    } else {
+                        throw new Error(result.error || 'Failed to send email');
+                    }
+                } else {
+                    throw new Error(`API返回非JSON响应`);
+                }
+            } catch (error) {
+                console.error('❌ 取消邮件发送失败:', error);
+                alert(`❌ Failed to send cancellation email: ${error.message}\n\nThe booking cancellation is still saved.`);
+            }
+        }
+
         // 生成日历
         function generateCalendar() {
             const year = appData.currentCalendarDate.getFullYear();
             const month = appData.currentCalendarDate.getMonth();
             
-            // 更新月份年份显示
             document.getElementById('currentMonthYear').textContent = 
                 `${year}年${month + 1}月 | ${year}-${(month + 1).toString().padStart(2, '0')}`;
             
@@ -460,7 +521,6 @@
             const calendarGrid = document.getElementById('calendarGrid');
             calendarGrid.innerHTML = '';
             
-            // 添加星期标题
             const weekDays = ['Sun | 日', 'Mon | 一', 'Tue | 二', 'Wed | 三', 'Thu | 四', 'Fri | 五', 'Sat | 六'];
             weekDays.forEach(day => {
                 const dayHeader = document.createElement('div');
@@ -469,7 +529,6 @@
                 calendarGrid.appendChild(dayHeader);
             });
             
-            // 生成日历格子
             for (let i = 0; i < 42; i++) {
                 const currentDate = new Date(startDate);
                 currentDate.setDate(startDate.getDate() + i);
@@ -485,7 +544,6 @@
                     booking.preferredDate === dateString && booking.status === 'confirmed'
                 );
                 
-                // 检查是否是选中的日期
                 const isSelected = appData.selectedCalendarDate === dateString;
                 
                 if (isCurrentMonth) {
@@ -497,7 +555,6 @@
                             dayElement.className += ' bg-blue-100 border-blue-300';
                         }
                     }
-                    // 添加点击事件
                     dayElement.addEventListener('click', () => handleCalendarDayClick(dateString));
                 } else {
                     dayElement.className += ' bg-gray-50 text-gray-400 cursor-default';
@@ -517,20 +574,14 @@
             const showAllBtn = document.getElementById('showAllOrdersBtn');
             
             if (appData.selectedCalendarDate === dateString) {
-                // 如果点击的是已选择的日期，取消选择，显示所有订单
                 appData.selectedCalendarDate = null;
                 appData.showAllOrders = true;
                 showAllBtn.style.display = 'none';
-                
-                // 重新生成日历以更新样式
                 generateCalendar();
             } else {
-                // 选择新日期，显示该日期的订单
                 appData.selectedCalendarDate = dateString;
                 appData.showAllOrders = false;
                 showAllBtn.style.display = 'block';
-                
-                // 重新生成日历以更新样式
                 generateCalendar();
             }
             
@@ -552,7 +603,6 @@
             document.getElementById('ordersTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive';
             document.getElementById('settingsTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active';
             
-            // 加载当前设置
             document.getElementById('welcomeMessageInput').value = appData.settings.welcomeMessage;
             document.getElementById('noticeMessageInput').value = appData.settings.noticeMessage;
             document.getElementById('afterSubmitNoticeInput').value = appData.settings.afterSubmitNotice;
@@ -563,7 +613,6 @@
         function loadOrdersList() {
             const ordersList = document.getElementById('ordersList');
             
-            // 筛选订单：如果选择了特定日期，只显示该日期的订单
             let filteredBookings = appData.bookings;
             if (!appData.showAllOrders && appData.selectedCalendarDate) {
                 filteredBookings = appData.bookings.filter(booking => 
@@ -629,7 +678,7 @@
                         ` : ''}
                         
                         <button data-booking-id="${booking.id}" class="cancel-btn bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-all">
-                            ${booking.status === 'confirmed' ? 'Cancel | 取消' : 'Cancel | 取消预约'}
+                            Cancel | 取消
                         </button>
                         
                         <button data-booking-id="${booking.id}" class="delete-btn bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-all">
@@ -639,7 +688,6 @@
                 </div>
             `).join('');
             
-            // 重新绑定按钮事件
             bindOrderButtons();
         }
 
@@ -681,11 +729,9 @@
 
             appData.currentModifyingBookingId = bookingId;
             
-            // 设置当前值
             document.getElementById('newDate').value = booking.preferredDate;
             document.getElementById('newTimeSlot').value = booking.preferredTimeSlot;
             
-            // 显示弹窗
             document.getElementById('modifyModal').style.display = 'flex';
         }
 
@@ -708,7 +754,6 @@
             const booking = appData.bookings.find(b => b.id === appData.currentModifyingBookingId);
             if (!booking) return;
 
-            // 检查新时间是否冲突
             const isConflict = appData.bookings.some(b => 
                 b.id !== appData.currentModifyingBookingId && 
                 b.preferredDate === newDate && 
@@ -723,21 +768,17 @@
 
             console.log('🔄 正在修改订单时间:', booking.orderNumber);
             
-            // 更新时间
             booking.preferredDate = newDate;
             booking.preferredTimeSlot = newTimeSlot;
             
-            // 💾 关键：保存到云端！
             await saveData();
             
-            // 关闭弹窗和更新界面
             hideModifyModal();
             loadOrdersList();
             generateCalendar();
             
             console.log('✅ 时间修改完成，已同步到云端');
             
-            // 发送修改通知邮件
             await sendConfirmationEmail(booking, true);
         }
 
@@ -763,222 +804,14 @@
             return labels[status] || 'Pending | 待确认';
         }
 
-        // 确认预约 - 修复版本
-        async function confirmBooking(bookingId) {
-            const booking = appData.bookings.find(b => b.id === bookingId);
-            if (booking) {
-                console.log('🔄 正在确认订单:', booking.orderNumber);
-                
-                // 更新状态
-                booking.status = 'confirmed';
-                
-                // 💾 关键：保存到云端！
-                await saveData();
-                
-                // 更新界面
-                loadOrdersList();
-                generateCalendar();
-                
-                console.log('✅ 订单确认完成，已同步到云端');
-                
-                // 发送确认邮件
-                await sendConfirmationEmail(booking, false);
-            }
-        }
-
-        // 取消预约 - 修复版本
-        async function cancelBooking(bookingId) {
-            if (confirm('Are you sure you want to cancel this booking? | 确定要取消这个预约吗？')) {
-                const booking = appData.bookings.find(b => b.id === bookingId);
-                if (booking) {
-                    console.log('🔄 正在取消订单:', booking.orderNumber);
-                    
-                    // 更新状态
-                    booking.status = 'cancelled';
-                    
-                    // 💾 关键：保存到云端！
-                    await saveData();
-                    
-                    // 更新界面
-                    loadOrdersList();
-                    generateCalendar();
-                    
-                    console.log('✅ 订单取消完成，已同步到云端');
-                    
-                    // 发送取消通知邮件
-                    await sendCancellationEmail(booking);
-                }
-            }
-        }
-
-        // 删除预约 - 修复版本
-        async function deleteBooking(bookingId) {
-            if (confirm('Are you sure you want to delete this booking? This action cannot be undone. | 确定要删除这个预约吗？此操作无法撤销。')) {
-                const bookingIndex = appData.bookings.findIndex(b => b.id === bookingId);
-                if (bookingIndex !== -1) {
-                    const booking = appData.bookings[bookingIndex];
-                    console.log('🔄 正在删除订单:', booking.orderNumber);
-                    
-                    // 删除订单
-                    appData.bookings.splice(bookingIndex, 1);
-                    
-                    // 💾 关键：保存到云端！
-                    await saveData();
-                    
-                    // 更新界面
-                    loadOrdersList();
-                    generateCalendar();
-                    
-                    console.log('✅ 订单删除完成，已同步到云端');
-                    alert('Booking deleted successfully. | 预约已成功删除。');
-                }
-            }
-        }
-
-        // 发送确认邮件 - 修复版本
-        async function sendConfirmationEmail(booking, isModification = false) {
-            const subject = isModification ? 
-                `Booking Time Modified | 预约时间已修改 - ${booking.orderNumber}` : 
-                `Booking Confirmed | 预约已确认 - ${booking.orderNumber}`;
-
-            console.log('🚀 开始发送邮件...', { 
-                to: booking.email, 
-                subject: subject,
-                isModification: isModification 
-            });
-
-            try {
-                const response = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        to: booking.email,
-                        subject: subject,
-                        bookingData: {
-                            type: 'confirmation',
-                            booking: booking,
-                            isModification: isModification
-                        }
-                    })
-                });
-
-                console.log('📧 API响应状态:', response.status);
-                console.log('📧 响应头 Content-Type:', response.headers.get('content-type'));
-
-                // 检查响应是否是JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-                    console.log('📧 API响应内容:', result);
-
-                    if (response.ok && result.success) {
-                        alert(`✅ ${isModification ? 'Modification notification' : 'Confirmation'} email sent successfully to ${booking.email}!\nMessage ID: ${result.messageId || 'N/A'}\n\n${isModification ? '修改通知' : '确认'}邮件已成功发送至 ${booking.email}！`);
-                    } else {
-                        throw new Error(`API Error: ${result.error || 'Unknown error'}`);
-                    }
-                } else {
-                    // 响应不是JSON，可能是HTML错误页面
-                    const text = await response.text();
-                    console.error('❌ 非JSON响应:', text.substring(0, 200));
-                    throw new Error(`API返回非JSON响应 (状态: ${response.status})`);
-                }
-            } catch (error) {
-                console.error('❌ 邮件发送失败:', error);
-                
-                let errorMessage = '';
-                if (error.message.includes('fetch')) {
-                    errorMessage = 'Network error - 网络连接问题';
-                } else if (error.message.includes('非JSON响应')) {
-                    errorMessage = 'Email API not found or misconfigured - 邮件API未找到或配置错误';
-                } else {
-                    errorMessage = error.message;
-                }
-                
-                alert(`❌ Failed to send email | 邮件发送失败\n\nError: ${errorMessage}\n\n📝 Don't worry! The booking is still saved successfully. You can contact the customer directly.\n不用担心！预约已成功保存，您可以直接联系客户。`);
-                
-                // 控制台显示邮件预览
-                console.log('📋 备用邮件内容预览:');
-                const emailPreview = `
-Dear ${booking.customerName},
-
-${isModification ? 
-    'Your booking time has been modified.' : 
-    'Your booking has been confirmed.'}
-
-Order Number: ${booking.orderNumber}
-Service Type: ${booking.serviceType}
-Date & Time: ${booking.preferredDate} ${booking.preferredTimeSlot}
-Address: ${booking.address}
-
-Best regards,
-Property Inspection Team
-                `;
-                console.log(emailPreview);
-            }
-        }
-
-        // 发送取消邮件 - 修复版本
-        async function sendCancellationEmail(booking) {
-            const subject = `Booking Cancelled | 预约已取消 - ${booking.orderNumber}`;
-
-            console.log('🚀 开始发送取消邮件...', { to: booking.email });
-
-            try {
-                const response = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        to: booking.email,
-                        subject: subject,
-                        bookingData: {
-                            type: 'cancellation',
-                            booking: booking,
-                            isModification: false
-                        }
-                    })
-                });
-
-                // 检查响应是否是JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const result = await response.json();
-
-                    if (response.ok && result.success) {
-                        alert(`✅ Cancellation email sent successfully to ${booking.email}!\n取消通知邮件已成功发送至 ${booking.email}！`);
-                    } else {
-                        throw new Error(result.error || 'Failed to send email');
-                    }
-                } else {
-                    const text = await response.text();
-                    console.error('❌ 取消邮件非JSON响应:', text.substring(0, 200));
-                    throw new Error(`API返回非JSON响应 (状态: ${response.status})`);
-                }
-            } catch (error) {
-                console.error('❌ 取消邮件发送失败:', error);
-                alert(`❌ Failed to send cancellation email | 取消邮件发送失败\n\nError: ${error.message}\n\n📝 The booking cancellation is still saved. You can contact the customer directly.\n预约取消已保存，您可以直接联系客户。`);
-                
-                // 控制台预览
-                console.log('📋 备用取消邮件内容:', `
-Dear ${booking.customerName},
-Your booking ${booking.orderNumber} has been cancelled.
-Best regards, Property Inspection Team
-                `);
-            }
-        }
-
         // 更新设置
         async function updateSettings() {
             appData.settings.welcomeMessage = document.getElementById('welcomeMessageInput').value;
             appData.settings.noticeMessage = document.getElementById('noticeMessageInput').value;
             appData.settings.afterSubmitNotice = document.getElementById('afterSubmitNoticeInput').value;
             
-            await saveData(); // 💾 保存设置更改
+            await saveData();
             
-            // 更新客户端显示
             const welcomeParagraphs = document.querySelectorAll('#welcomeText');
             if (welcomeParagraphs.length > 0) {
                 welcomeParagraphs[0].textContent = appData.settings.welcomeMessage;
@@ -1019,7 +852,6 @@ Best regards, Property Inspection Team
 
         // 事件绑定
         function bindEvents() {
-            // 确保元素存在后再绑定事件
             const customerTab = document.getElementById('customerTab');
             const adminTab = document.getElementById('adminTab');
             const nextStepBtn = document.getElementById('nextStepBtn');
@@ -1037,7 +869,6 @@ Best regards, Property Inspection Team
             const confirmModify = document.getElementById('confirmModify');
             const modifyModal = document.getElementById('modifyModal');
 
-            // 导航按钮
             if (customerTab) {
                 customerTab.addEventListener('click', showCustomerView);
             }
@@ -1045,7 +876,6 @@ Best regards, Property Inspection Team
                 adminTab.addEventListener('click', showAdminView);
             }
 
-            // 步骤控制按钮
             if (nextStepBtn) {
                 nextStepBtn.addEventListener('click', function() {
                     if (validateStep1()) {
@@ -1069,7 +899,6 @@ Best regards, Property Inspection Team
                 resetBtn.addEventListener('click', resetForm);
             }
 
-            // 钥匙安排变化监听
             if (keyArrangement) {
                 keyArrangement.addEventListener('change', function() {
                     const keyOtherSection = document.getElementById('keyOtherSection');
@@ -1085,7 +914,6 @@ Best regards, Property Inspection Team
                 });
             }
 
-            // 日历导航按钮
             if (prevMonth) {
                 prevMonth.addEventListener('click', function() {
                     appData.currentCalendarDate.setMonth(appData.currentCalendarDate.getMonth() - 1);
@@ -1100,7 +928,6 @@ Best regards, Property Inspection Team
                 });
             }
 
-            // 后台管理标签切换
             if (ordersTabBtn) {
                 ordersTabBtn.addEventListener('click', showOrdersTab);
             }
@@ -1109,12 +936,10 @@ Best regards, Property Inspection Team
                 settingsTabBtn.addEventListener('click', showSettingsTab);
             }
 
-            // 保存设置按钮
             if (saveSettingsBtn) {
                 saveSettingsBtn.addEventListener('click', updateSettings);
             }
 
-            // 显示所有订单按钮
             if (showAllOrdersBtn) {
                 showAllOrdersBtn.addEventListener('click', function() {
                     appData.selectedCalendarDate = null;
@@ -1125,7 +950,6 @@ Best regards, Property Inspection Team
                 });
             }
 
-            // 修改时间弹窗按钮
             if (cancelModify) {
                 cancelModify.addEventListener('click', hideModifyModal);
             }
@@ -1134,7 +958,6 @@ Best regards, Property Inspection Team
                 confirmModify.addEventListener('click', confirmModifyTime);
             }
 
-            // 点击弹窗外部关闭
             if (modifyModal) {
                 modifyModal.addEventListener('click', function(e) {
                     if (e.target === this) {
@@ -1144,21 +967,17 @@ Best regards, Property Inspection Team
             }
         }
 
-        // 页面初始化 - 云端数据库版本
+        // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 页面加载完成，开始初始化...');
             
-            // 等待一个短暂的时间确保所有元素都渲染完成
             setTimeout(async function() {
                 try {
-                    // 🔄 首先从云端加载数据
                     await loadData();
                     
-                    // 初始化UI事件
                     bindEvents();
                     showCustomerView();
                     
-                    // 设置默认选项
                     const serviceType = document.getElementById('serviceType');
                     const keyArrangement = document.getElementById('keyArrangement');
                     
@@ -1171,14 +990,12 @@ Best regards, Property Inspection Team
                     
                     console.log('🎉 初始化完成！云端数据已加载');
                     
-                    // 显示成功提示
                     if (appData.bookings.length > 0) {
                         console.log(`📊 系统中有 ${appData.bookings.length} 个订单`);
                     }
                     
                 } catch (error) {
                     console.error('❌ 初始化时出错:', error);
-                    // 如果出错，尝试重新初始化
                     setTimeout(function() {
                         bindEvents();
                         showCustomerView();
@@ -1189,8 +1006,7 @@ Best regards, Property Inspection Team
         });
     </script>
 </body>
-</html>
-                <!DOCTYPE html>
+</html><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1672,4 +1488,4 @@ Thank you for your trust!
             bookings: [],
             settings: {
                 welcomeMessage: 'Welcome to our property inspection booking system! We provide professional and caring property inspection services.',
-                noticeMessage: 'Please note:\n• Please ensure the appointment time is accurate\n• For cancellations or modifications,
+                noticeMessage: 'Please note:\n• Please ensure the appointment time is accurate\n• For cancellations
