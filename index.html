@@ -1,3 +1,41 @@
+                    </div>
+
+                    <button id="saveSettingsBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                        Save Settings | 保存设置
+                    </button>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-medium text-blue-900 mb-2">📊 Data Statistics | 数据统计</h4>
+                        <div id="statsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <!-- 统计数据 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改时间弹窗 -->
+    <div id="modifyModal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="glass-effect rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4 gradient-text">Modify Appointment Time | 修改预约时间</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        New Date | 新日期 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" id="newDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        New Time Slot | 新时间段 <span class="text-red-500">*</span>
+                    </label>
+                    <select id="newTimeSlot" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="10:00-11:30">10:00-11:30</option>
+                        <option value="11:30-13:00">11:30-13:00</option>
+                        <option value="13:00-14:30">13:00-14:30</option>
                     </select>
                 </div>
             </div>
@@ -29,8 +67,8 @@
             selectedCalendarDate: null,
             showAllOrders: true,
             currentModifyingBookingId: null,
-            lastCloudSync: null, // 添加最后同步时间记录
-            autoRefreshInterval: null // 添加自动刷新定时器
+            lastCloudSync: null,
+            autoRefreshInterval: null
         };
 
         // 🌐 云端数据存储函数
@@ -76,7 +114,6 @@
                     console.log('📦 收到云端数据:', data);
                     
                     if (data.success) {
-                        // 更新本地数据
                         appData.bookings = data.bookings || [];
                         appData.settings = { ...appData.settings, ...data.settings };
                         appData.nextOrderNumber = data.nextOrderNumber || 1;
@@ -95,9 +132,8 @@
             }
         }
 
-        // 💾 智能数据保存函数（云端优先，本地备份）
+        // 💾 智能数据保存函数
         async function saveData() {
-            // 先保存到本地作为备份
             try {
                 const dataToSave = {
                     bookings: appData.bookings,
@@ -111,7 +147,6 @@
                 console.error('❌ 本地备份失败:', error);
             }
             
-            // 尝试保存到云端
             const cloudSuccess = await saveToCloud();
             
             if (cloudSuccess) {
@@ -121,11 +156,10 @@
             }
         }
 
-        // 🔄 智能数据加载函数（云端优先，本地兜底）
+        // 🔄 智能数据加载函数
         async function loadData() {
             console.log('🔄 开始加载数据...');
             
-            // 尝试从云端加载
             const cloudSuccess = await loadFromCloud();
             
             if (!cloudSuccess) {
@@ -146,7 +180,6 @@
                 }
             }
             
-            // 更新界面
             if (document.getElementById('welcomeText')) {
                 document.getElementById('welcomeText').textContent = appData.settings.welcomeMessage;
             }
@@ -154,13 +187,12 @@
             console.log('✅ 数据加载完成');
         }
 
-        // 🔄 启动自动刷新（仅在管理员界面）
+        // 🔄 自动刷新
         function startAutoRefresh() {
             if (appData.autoRefreshInterval) {
                 clearInterval(appData.autoRefreshInterval);
             }
             
-            // 每30秒自动刷新一次数据
             appData.autoRefreshInterval = setInterval(async () => {
                 if (document.getElementById('adminView').style.display !== 'none') {
                     console.log('🔄 自动刷新数据...');
@@ -172,7 +204,6 @@
             }, 30000);
         }
 
-        // 🛑 停止自动刷新
         function stopAutoRefresh() {
             if (appData.autoRefreshInterval) {
                 clearInterval(appData.autoRefreshInterval);
@@ -186,7 +217,7 @@
             document.getElementById('adminView').style.display = 'none';
             document.getElementById('customerTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
             document.getElementById('adminTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
-            stopAutoRefresh(); // 停止自动刷新
+            stopAutoRefresh();
         }
 
         async function showAdminView() {
@@ -197,11 +228,10 @@
                 document.getElementById('adminTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
                 document.getElementById('customerTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
                 
-                // 进入管理员界面时立即刷新数据
                 await loadFromCloud();
                 generateCalendar();
                 showOrdersTab();
-                startAutoRefresh(); // 启动自动刷新
+                startAutoRefresh();
             } else if (password !== null) {
                 alert('Incorrect password! | 密码错误！');
             }
@@ -261,7 +291,6 @@
 
         // 生成日期网格
         async function generateDateGrid() {
-            // 先刷新数据以获取最新预约情况
             await loadFromCloud();
             
             const dates = generateAvailableDates();
@@ -437,7 +466,7 @@
             showStep(1);
         }
 
-        // 确认预约 - 修复版本
+        // 确认预约
         async function confirmBooking(bookingId) {
             const booking = appData.bookings.find(b => b.id === bookingId);
             if (booking) {
@@ -453,7 +482,7 @@
             }
         }
 
-        // 取消预约 - 修复版本
+        // 取消预约
         async function cancelBooking(bookingId) {
             if (confirm('Are you sure you want to cancel this booking? | 确定要取消这个预约吗？')) {
                 const booking = appData.bookings.find(b => b.id === bookingId);
@@ -469,7 +498,7 @@
             }
         }
 
-        // 删除预约 - 修复版本
+        // 删除预约
         async function deleteBooking(bookingId) {
             if (confirm('Are you sure you want to delete this booking? This action cannot be undone. | 确定要删除这个预约吗？此操作无法撤销。')) {
                 const bookingIndex = appData.bookings.findIndex(b => b.id === bookingId);
@@ -486,7 +515,7 @@
             }
         }
 
-        // 发送确认邮件 - 修复版本
+        // 发送确认邮件
         async function sendConfirmationEmail(booking, isModification = false) {
             const subject = isModification ? 
                 `Booking Time Modified | 预约时间已修改 - ${booking.orderNumber}` : 
@@ -530,7 +559,7 @@
             }
         }
 
-        // 发送取消邮件 - 修复版本
+        // 发送取消邮件
         async function sendCancellationEmail(booking) {
             try {
                 const response = await fetch('/api/send-email', {
@@ -753,6 +782,27 @@
 
         // 绑定订单按钮事件
         function bindOrderButtons() {
+            document.querySelectorAll('.confirm-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    confirmBooking(bookingId);
+                });
+            });
+            
+            document.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    cancelBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    deleteBooking(bookingId);
+                });
+            });
+
             document.querySelectorAll('.modify-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const bookingId = parseInt(this.dataset.bookingId);
@@ -780,7 +830,7 @@
             appData.currentModifyingBookingId = null;
         }
 
-        // 确认修改时间 - 修复版本
+        // 确认修改时间
         async function confirmModifyTime() {
             const newDate = document.getElementById('newDate').value;
             const newTimeSlot = document.getElementById('newTimeSlot').value;
@@ -1047,28 +1097,7 @@
         });
     </script>
 </body>
-</html>confirm-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    confirmBooking(bookingId);
-                });
-            });
-            
-            document.querySelectorAll('.cancel-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    cancelBooking(bookingId);
-                });
-            });
-
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    deleteBooking(bookingId);
-                });
-            });
-
-            document.querySelectorAll('.<!DOCTYPE html>
+</html><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1491,42 +1520,3 @@ Thank you for your trust!
 我们会在24小时内与您确认预约详情。
 如有任何疑问，请随时联系我们。
 谢谢您的信任！</textarea>
-                    </div>
-
-                    <button id="saveSettingsBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
-                        Save Settings | 保存设置
-                    </button>
-
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 class="font-medium text-blue-900 mb-2">📊 Data Statistics | 数据统计</h4>
-                        <div id="statsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                            <!-- 统计数据 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 修改时间弹窗 -->
-    <div id="modifyModal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-effect rounded-2xl p-6 max-w-md w-full mx-4">
-            <h3 class="text-xl font-bold mb-4 gradient-text">Modify Appointment Time | 修改预约时间</h3>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        New Date | 新日期 <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="newDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        New Time Slot | 新时间段 <span class="text-red-500">*</span>
-                    </label>
-                    <select id="newTimeSlot" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="10:00-11:30">10:00-11:30</option>
-                        <option value="11:30-13:00">11:30-13:00</option>
-                        <option value="13:00-14:30">13:00-14:30</option>
-                    </select>
