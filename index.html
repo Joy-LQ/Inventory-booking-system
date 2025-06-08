@@ -297,3 +297,883 @@
     </script>
 </body>
 </html>
+    <script>
+        // =========================
+        // FULL JAVASCRIPT CONTINUED
+        // =========================
+
+        // 视图切换
+        function showCustomerView() {
+            document.getElementById('customerView').style.display = 'block';
+            document.getElementById('adminView').style.display = 'none';
+            document.getElementById('customerTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+            document.getElementById('adminTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+        }
+
+        function showAdminView() {
+            const password = prompt('Please enter admin password | 请输入管理员密码:');
+            if (password === 'admin123') {
+                document.getElementById('customerView').style.display = 'none';
+                document.getElementById('adminView').style.display = 'block';
+                document.getElementById('adminTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
+                document.getElementById('customerTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+
+                generateCalendar();
+                showOrdersTab();
+            } else if (password !== null) {
+                alert('Incorrect password! | 密码错误！');
+            }
+        }
+
+        // 步骤控制
+        function showStep(stepNumber) {
+            document.getElementById('step1').style.display = stepNumber === 1 ? 'block' : 'none';
+            document.getElementById('step2').style.display = stepNumber === 2 ? 'block' : 'none';
+            document.getElementById('step3').style.display = stepNumber === 3 ? 'block' : 'none';
+        }
+
+        // 验证第一步
+        function validateStep1() {
+            const required = ['customerName', 'phone', 'email', 'address', 'serviceType', 'keyArrangement'];
+            for (const field of required) {
+                if (!document.getElementById(field).value.trim()) {
+                    alert('Please fill in all required fields! | 请填写所有必填字段！');
+                    return false;
+                }
+            }
+
+            if (document.getElementById('keyArrangement').value === 'Other | 其他') {
+                if (!document.getElementById('keyOtherDetails').value.trim()) {
+                    alert('Please specify the key arrangement details! | 请详细说明钥匙的具体安排！');
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // 生成可用日期
+        function generateAvailableDates() {
+            const dates = [];
+            const today = new Date();
+
+            for (let i = 1; i <= 30; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+
+                if (date.getDay() >= 1 && date.getDay() <= 5) {
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+            }
+            return dates;
+        }
+
+        // 检查时间段是否被预约
+        function isTimeSlotBooked(date, timeSlot) {
+            return appData.bookings.some(booking =>
+                booking.preferredDate === date &&
+                booking.preferredTimeSlot === timeSlot &&
+                booking.status === 'confirmed'
+            );
+        }
+
+        // 生成日期网格
+        function generateDateGrid() {
+            const dates = generateAvailableDates();
+            const dateGrid = document.getElementById('dateGrid');
+            dateGrid.innerHTML = '';
+
+            dates.slice(0, 12).forEach(date => {
+                const timeSlots = ['10:00-11:30', '11:30-13:00', '13:00-14:30'];
+                const hasAvailableSlots = timeSlots.some(slot => !isTimeSlotBooked(date, slot));
+
+                if (hasAvailableSlots) {
+                    const dateObj = new Date(date);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-gray-200 hover:border-blue-300 hover:bg-blue-50 bg-white';
+
+                    button.addEventListener('click', function () {
+                        selectDate(date, this);
+                    });
+
+                    button.innerHTML = `
+                        <div class="text-sm font-medium">
+                            ${dateObj.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${dateObj.toLocaleDateString('zh-CN', { weekday: 'short' })}
+                        </div>
+                    `;
+                    dateGrid.appendChild(button);
+                }
+            });
+        }
+
+        // 选择日期
+        function selectDate(date, button) {
+            document.querySelectorAll('#dateGrid button').forEach(btn => {
+                btn.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-gray-200 hover:border-blue-300 hover:bg-blue-50 bg-white';
+            });
+
+            button.className = 'p-3 rounded-lg border-2 transition-all hover:scale-105 border-orange-500 bg-orange-50 text-orange-700';
+            appData.selectedDate = date;
+            appData.selectedTimeSlot = '';
+
+            generateTimeSlotGrid();
+            document.getElementById('timeSlotSection').style.display = 'block';
+            updateSubmitButton();
+        }
+
+        // 生成时间段网格
+        function generateTimeSlotGrid() {
+            const timeSlots = ['10:00-11:30', '11:30-13:00', '13:00-14:30'];
+            const timeSlotGrid = document.getElementById('timeSlotGrid');
+            timeSlotGrid.innerHTML = '';
+
+            timeSlots.forEach(timeSlot => {
+                const isBooked = isTimeSlotBooked(appData.selectedDate, timeSlot);
+                const button = document.createElement('button');
+                button.type = 'button';
+
+                if (isBooked) {
+                    button.className = 'time-slot-booked p-4 rounded-lg font-medium transition-all';
+                    button.disabled = true;
+                    button.innerHTML = `
+                        <div class="text-lg">${timeSlot}</div>
+                        <div class="text-sm mt-1">已预约 | Booked</div>
+                    `;
+                } else {
+                    button.className = 'time-slot-available p-4 rounded-lg font-medium transition-all';
+                    button.addEventListener('click', function () {
+                        selectTimeSlot(timeSlot, this);
+                    });
+                    button.innerHTML = `
+                        <div class="text-lg">${timeSlot}</div>
+                        <div class="text-sm mt-1">可预约 | Available</div>
+                    `;
+                }
+
+                timeSlotGrid.appendChild(button);
+            });
+        }
+
+        // 选择时间段
+        function selectTimeSlot(timeSlot, button) {
+            document.querySelectorAll('#timeSlotGrid button:not(:disabled)').forEach(btn => {
+                btn.className = 'time-slot-available p-4 rounded-lg font-medium transition-all';
+                btn.innerHTML = btn.innerHTML.replace('已选择 | Selected', '可预约 | Available');
+            });
+
+            button.className = 'time-slot-selected p-4 rounded-lg font-medium transition-all';
+            button.innerHTML = `
+                <div class="text-lg">${timeSlot}</div>
+                <div class="text-sm mt-1">已选择 | Selected</div>
+            `;
+
+            appData.selectedTimeSlot = timeSlot;
+            updateSubmitButton();
+        }
+
+        // 更新提交按钮
+        function updateSubmitButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            if (appData.selectedDate && appData.selectedTimeSlot) {
+                submitBtn.disabled = false;
+                submitBtn.className = 'btn-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = 'btn-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold opacity-50 cursor-not-allowed';
+            }
+        }
+
+        // 提交预约
+        async function submitBooking() {
+            const orderNum = appData.nextOrderNumber.toString().padStart(3, '0');
+            const newOrderNumber = `INV-InventoryHub-${orderNum}`;
+            appData.nextOrderNumber++;
+
+            let keyArrangement = document.getElementById('keyArrangement').value;
+            if (keyArrangement === 'Other | 其他') {
+                keyArrangement = 'Other | 其他：' + document.getElementById('keyOtherDetails').value;
+            }
+
+            const newBooking = {
+                id: Date.now(),
+                orderNumber: newOrderNumber,
+                customerName: document.getElementById('customerName').value,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                address: document.getElementById('address').value,
+                postcode: document.getElementById('postcode').value,
+                serviceType: document.getElementById('serviceType').value,
+                preferredDate: appData.selectedDate,
+                preferredTimeSlot: appData.selectedTimeSlot,
+                keyArrangement: keyArrangement,
+                specialRequirements: document.getElementById('specialRequirements').value,
+                notes: document.getElementById('notes').value,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            appData.bookings.push(newBooking);
+            await saveData();
+
+            document.getElementById('orderNumber').textContent = newOrderNumber;
+            document.getElementById('bookingDetails').innerHTML = `
+                <p><strong>Name | 姓名：</strong>${newBooking.customerName}</p>
+                <p><strong>Phone | 联系方式：</strong>${newBooking.phone}</p>
+                <p><strong>Service Type | 服务类型：</strong>${newBooking.serviceType}</p>
+                <p><strong>Date | 预约日期：</strong>${newBooking.preferredDate}</p>
+                <p><strong>Time | 预约时间：</strong>${newBooking.preferredTimeSlot}</p>
+                <p><strong>Key Arrangement | 钥匙安排：</strong>${newBooking.keyArrangement}</p>
+            `;
+
+            showStep(3);
+        }
+
+        // 重置表单
+        function resetForm() {
+            const fields = ['customerName', 'phone', 'email', 'address', 'postcode', 'specialRequirements', 'notes', 'keyOtherDetails'];
+            fields.forEach(field => {
+                if (document.getElementById(field)) {
+                    document.getElementById(field).value = '';
+                }
+            });
+
+            document.getElementById('serviceType').selectedIndex = 0;
+            document.getElementById('keyArrangement').selectedIndex = 0;
+            document.getElementById('keyOtherSection').style.display = 'none';
+
+            appData.selectedDate = '';
+            appData.selectedTimeSlot = '';
+            document.getElementById('timeSlotSection').style.display = 'none';
+
+            showStep(1);
+        }
+
+        // 确认预约 - 修复版本
+        async function confirmBooking(bookingId) {
+            const booking = appData.bookings.find(b => b.id === bookingId);
+            if (booking) {
+                console.log('🔄 正在确认订单:', booking.orderNumber);
+                booking.status = 'confirmed';
+                await saveData();
+                loadOrdersList();
+                generateCalendar();
+                console.log('✅ 订单确认完成，已同步到云端');
+                await sendConfirmationEmail(booking, false);
+            }
+        }
+
+        // 取消预约 - 修复版本
+        async function cancelBooking(bookingId) {
+            if (confirm('Are you sure you want to cancel this booking? | 确定要取消这个预约吗？')) {
+                const booking = appData.bookings.find(b => b.id === bookingId);
+                if (booking) {
+                    console.log('🔄 正在取消订单:', booking.orderNumber);
+                    booking.status = 'cancelled';
+                    await saveData();
+                    loadOrdersList();
+                    generateCalendar();
+                    console.log('✅ 订单取消完成，已同步到云端');
+                    await sendCancellationEmail(booking);
+                }
+            }
+        }
+
+        // 删除预约 - 修复版本
+        async function deleteBooking(bookingId) {
+            if (confirm('Are you sure you want to delete this booking? This action cannot be undone. | 确定要删除这个预约吗？此操作无法撤销。')) {
+                const bookingIndex = appData.bookings.findIndex(b => b.id === bookingId);
+                if (bookingIndex !== -1) {
+                    const booking = appData.bookings[bookingIndex];
+                    console.log('🔄 正在删除订单:', booking.orderNumber);
+                    appData.bookings.splice(bookingIndex, 1);
+                    await saveData();
+                    loadOrdersList();
+                    generateCalendar();
+                    console.log('✅ 订单删除完成，已同步到云端');
+                    alert('Booking deleted successfully. | 预约已成功删除。');
+                }
+            }
+        }
+
+        // 发送确认邮件 - 修复版本
+        async function sendConfirmationEmail(booking, isModification = false) {
+            const subject = isModification ?
+                `Booking Time Modified | 预约时间已修改 - ${booking.orderNumber}` :
+                `Booking Confirmed | 预约已确认 - ${booking.orderNumber}`;
+
+            console.log('🚀 开始发送邮件...', { to: booking.email, subject: subject });
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: subject,
+                        bookingData: {
+                            type: 'confirmation',
+                            booking: booking,
+                            isModification: isModification
+                        }
+                    })
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        alert(`✅ ${isModification ? 'Modification notification' : 'Confirmation'} email sent successfully!`);
+                    } else {
+                        throw new Error(`API Error: ${result.error || 'Unknown error'}`);
+                    }
+                } else {
+                    const text = await response.text();
+                    console.error('❌ 非JSON响应:', text.substring(0, 200));
+                    throw new Error(`API返回非JSON响应 (状态: ${response.status})`);
+                }
+            } catch (error) {
+                console.error('❌ 邮件发送失败:', error);
+                alert(`❌ Failed to send email: ${error.message}\n\nThe booking is still saved successfully.`);
+            }
+        }
+
+        // 发送取消邮件 - 修复版本
+        async function sendCancellationEmail(booking) {
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: booking.email,
+                        subject: `Booking Cancelled | 预约已取消 - ${booking.orderNumber}`,
+                        bookingData: {
+                            type: 'cancellation',
+                            booking: booking,
+                            isModification: false
+                        }
+                    })
+                });
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        alert(`✅ Cancellation email sent successfully!`);
+                    } else {
+                        throw new Error(result.error || 'Failed to send email');
+                    }
+                } else {
+                    throw new Error(`API返回非JSON响应`);
+                }
+            } catch (error) {
+                console.error('❌ 取消邮件发送失败:', error);
+                alert(`❌ Failed to send cancellation email: ${error.message}\n\nThe booking cancellation is still saved.`);
+            }
+        }
+
+        // 生成日历
+        function generateCalendar() {
+            const year = appData.currentCalendarDate.getFullYear();
+            const month = appData.currentCalendarDate.getMonth();
+
+            document.getElementById('currentMonthYear').textContent =
+                `${year}年${month + 1}月 | ${year}-${(month + 1).toString().padStart(2, '0')}`;
+
+            const firstDay = new Date(year, month, 1);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+
+            const weekDays = ['Sun | 日', 'Mon | 一', 'Tue | 二', 'Wed | 三', 'Thu | 四', 'Fri | 五', 'Sat | 六'];
+            weekDays.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'text-center font-semibold text-gray-600 p-2 text-xs';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+
+            for (let i = 0; i < 42; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+
+                const dayElement = document.createElement('div');
+                const dateString = currentDate.toISOString().split('T')[0];
+
+                dayElement.className = 'relative p-2 text-center border border-gray-100 rounded min-h-[60px] flex flex-col justify-center cursor-pointer transition-all hover:bg-gray-50';
+                dayElement.setAttribute('data-date', dateString);
+
+                const isCurrentMonth = currentDate.getMonth() === month;
+                const hasBookings = appData.bookings.some(booking =>
+                    booking.preferredDate === dateString && booking.status === 'confirmed'
+                );
+
+                const isSelected = appData.selectedCalendarDate === dateString;
+
+                if (isCurrentMonth) {
+                    if (isSelected) {
+                        dayElement.className += ' calendar-day-selected bg-orange-200 border-orange-400 text-gray-900';
+                    } else {
+                        dayElement.className += ' bg-white text-gray-900';
+                        if (hasBookings) {
+                            dayElement.className += ' bg-blue-100 border-blue-300';
+                        }
+                    }
+                    dayElement.addEventListener('click', () => handleCalendarDayClick(dateString));
+                } else {
+                    dayElement.className += ' bg-gray-50 text-gray-400 cursor-default';
+                }
+
+                dayElement.innerHTML = `
+                    <div class="text-sm font-medium">${currentDate.getDate()}</div>
+                    ${hasBookings ? '<div class="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-1"></div>' : ''}
+                `;
+
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        // 日历点击处理
+        function handleCalendarDayClick(dateString) {
+            const showAllBtn = document.getElementById('showAllOrdersBtn');
+
+            if (appData.selectedCalendarDate === dateString) {
+                appData.selectedCalendarDate = null;
+                appData.showAllOrders = true;
+                showAllBtn.style.display = 'none';
+                generateCalendar();
+            } else {
+                appData.selectedCalendarDate = dateString;
+                appData.showAllOrders = false;
+                showAllBtn.style.display = 'block';
+                generateCalendar();
+            }
+
+            loadOrdersList();
+        }
+
+        // 管理员标签页切换
+        function showOrdersTab() {
+            document.getElementById('ordersTab').style.display = 'block';
+            document.getElementById('settingsTab').style.display = 'none';
+            document.getElementById('ordersTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active';
+            document.getElementById('settingsTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive';
+            loadOrdersList();
+        }
+
+        function showSettingsTab() {
+            document.getElementById('ordersTab').style.display = 'none';
+            document.getElementById('settingsTab').style.display = 'block';
+            document.getElementById('ordersTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-inactive';
+            document.getElementById('settingsTabBtn').className = 'flex-1 py-3 px-4 rounded-md font-medium transition-all nav-active';
+
+            document.getElementById('welcomeMessageInput').value = appData.settings.welcomeMessage;
+            document.getElementById('noticeMessageInput').value = appData.settings.noticeMessage;
+            document.getElementById('afterSubmitNoticeInput').value = appData.settings.afterSubmitNotice;
+            updateStats();
+        }
+
+        // 加载订单列表
+        function loadOrdersList() {
+            const ordersList = document.getElementById('ordersList');
+
+            let filteredBookings = appData.bookings;
+            if (!appData.showAllOrders && appData.selectedCalendarDate) {
+                filteredBookings = appData.bookings.filter(booking =>
+                    booking.preferredDate === appData.selectedCalendarDate
+                );
+            }
+
+            if (filteredBookings.length === 0) {
+                const message = appData.showAllOrders ?
+                    'No orders found | 暂无订单' :
+                    'No orders for selected date | 所选日期无订单';
+                ordersList.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-4xl mb-4">📋</div>
+                        <p class="text-gray-500">${message}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            ordersList.innerHTML = filteredBookings.slice().reverse().map(booking => `
+                <div class="admin-bg rounded-lg p-4 mb-4 card-hover border border-gray-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-lg text-blue-900">${booking.orderNumber}</h4>
+                            <p class="text-gray-600">${booking.customerName} • ${booking.phone}</p>
+                        </div>
+                        <span class="mt-2 sm:mt-0 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(booking.status)}">
+                            ${getStatusLabel(booking.status)}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-gray-700"><strong>Service Type | 服务类型：</strong>${booking.serviceType}</p>
+                            <p class="text-gray-700"><strong>Date & Time | 预约时间：</strong>${booking.preferredDate} ${booking.preferredTimeSlot}</p>
+                            <p class="text-gray-700"><strong>Key Arrangement | 钥匙安排：</strong>${booking.keyArrangement}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-700"><strong>Address | 地址：</strong>${booking.address}</p>
+                            <p class="text-gray-700"><strong>Email | 邮箱：</strong>${booking.email}</p>
+                        </div>
+                    </div>
+
+                    ${booking.notes ? `
+                        <div class="mb-4">
+                            <p class="text-gray-700"><strong>Notes | 备注：</strong></p>
+                            <p class="text-gray-600 bg-gray-100 p-2 rounded">${booking.notes}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        ${booking.status === 'pending' ? `
+                            <button data-booking-id="${booking.id}" class="confirm-btn btn-primary text-white px-4 py-2 rounded-lg text-sm">
+                                Confirm | 确认预约
+                            </button>
+                        ` : ''}
+
+                        ${booking.status === 'confirmed' ? `
+                            <button data-booking-id="${booking.id}" class="modify-btn btn-secondary text-white px-4 py-2 rounded-lg text-sm">
+                                Modify Time | 修改时间
+                            </button>
+                        ` : ''}
+
+                        <button data-booking-id="${booking.id}" class="cancel-btn bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-all">
+                            Cancel | 取消
+                        </button>
+
+                        <button data-booking-id="${booking.id}" class="delete-btn bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-all">
+                            Delete | 删除
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            bindOrderButtons();
+        }
+
+        // 绑定订单按钮事件
+        function bindOrderButtons() {
+            document.querySelectorAll('.confirm-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    confirmBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    cancelBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    deleteBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.modify-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    showModifyModal(bookingId);
+                });
+            });
+        }
+
+        // 显示修改时间弹窗
+        function showModifyModal(bookingId) {
+            const booking = appData.bookings.find(b => b.id === bookingId);
+            if (!booking) return;
+
+            appData.currentModifyingBookingId = bookingId;
+
+            document.getElementById('newDate').value = booking.preferredDate;
+            document.getElementById('newTimeSlot').value = booking.preferredTimeSlot;
+
+            document.getElementById('modifyModal').style.display = 'flex';
+        }
+
+        // 隐藏修改弹窗
+        function hideModifyModal() {
+            document.getElementById('modifyModal').style.display = 'none';
+            appData.currentModifyingBookingId = null;
+        }
+
+        // 确认修改时间 - 修复版本
+        async function confirmModifyTime() {
+            const newDate = document.getElementById('newDate').value;
+            const newTimeSlot = document.getElementById('newTimeSlot').value;
+
+            if (!newDate || !newTimeSlot) {
+                alert('Please fill in all fields | 请填写所有字段');
+                return;
+            }
+
+            const booking = appData.bookings.find(b => b.id === appData.currentModifyingBookingId);
+            if (!booking) return;
+
+            const isConflict = appData.bookings.some(b =>
+                b.id !== appData.currentModifyingBookingId &&
+                b.preferredDate === newDate &&
+                b.preferredTimeSlot === newTimeSlot &&
+                b.status === 'confirmed'
+            );
+
+            if (isConflict) {
+                alert('Time slot conflict! Please choose another time. | 时间冲突！请选择其他时间。');
+                return;
+            }
+
+            console.log('🔄 正在修改订单时间:', booking.orderNumber);
+
+            booking.preferredDate = newDate;
+            booking.preferredTimeSlot = newTimeSlot;
+
+            await saveData();
+
+            hideModifyModal();
+            loadOrdersList();
+            generateCalendar();
+
+            console.log('✅ 时间修改完成，已同步到云端');
+
+            await sendConfirmationEmail(booking, true);
+        }
+
+        // 获取状态样式类
+        function getStatusBadgeClass(status) {
+            const classes = {
+                pending: 'bg-yellow-100 text-yellow-800',
+                confirmed: 'bg-green-100 text-green-800',
+                completed: 'bg-blue-100 text-blue-800',
+                cancelled: 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || classes.pending;
+        }
+
+        // 获取状态标签
+        function getStatusLabel(status) {
+            const labels = {
+                pending: 'Pending | 待确认',
+                confirmed: 'Confirmed | 已确认',
+                completed: 'Completed | 已完成',
+                cancelled: 'Cancelled | 已取消'
+            };
+            return labels[status] || 'Pending | 待确认';
+        }
+
+        // 更新设置
+        async function updateSettings() {
+            appData.settings.welcomeMessage = document.getElementById('welcomeMessageInput').value;
+            appData.settings.noticeMessage = document.getElementById('noticeMessageInput').value;
+            appData.settings.afterSubmitNotice = document.getElementById('afterSubmitNoticeInput').value;
+
+            await saveData();
+
+            const welcomeParagraphs = document.querySelectorAll('#welcomeText');
+            if (welcomeParagraphs.length > 0) {
+                welcomeParagraphs[0].textContent = appData.settings.welcomeMessage;
+            }
+            document.getElementById('noticeText').textContent = appData.settings.noticeMessage;
+            document.getElementById('afterSubmitNotice').textContent = appData.settings.afterSubmitNotice;
+
+            alert('Settings saved successfully! | 设置已保存！');
+        }
+
+        // 更新统计数据
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const totalBookings = appData.bookings.length;
+            const pendingBookings = appData.bookings.filter(b => b.status === 'pending').length;
+            const confirmedBookings = appData.bookings.filter(b => b.status === 'confirmed').length;
+            const completedBookings = appData.bookings.filter(b => b.status === 'completed').length;
+
+            statsGrid.innerHTML = `
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-blue-900">${totalBookings}</div>
+                    <div class="text-sm text-blue-700">Total | 总订单</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-yellow-600">${pendingBookings}</div>
+                    <div class="text-sm text-yellow-700">Pending | 待确认</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-green-600">${confirmedBookings}</div>
+                    <div class="text-sm text-green-700">Confirmed | 已确认</div>
+                </div>
+                <div class="bg-white p-3 rounded-lg border border-gray-200">
+                    <div class="text-2xl font-bold text-blue-600">${completedBookings}</div>
+                    <div class="text-sm text-blue-700">Completed | 已完成</div>
+                </div>
+            `;
+        }
+
+        // 事件绑定
+        function bindEvents() {
+            const customerTab = document.getElementById('customerTab');
+            const adminTab = document.getElementById('adminTab');
+            const nextStepBtn = document.getElementById('nextStepBtn');
+            const prevStepBtn = document.getElementById('prevStepBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const keyArrangement = document.getElementById('keyArrangement');
+            const prevMonth = document.getElementById('prevMonth');
+            const nextMonth = document.getElementById('nextMonth');
+            const ordersTabBtn = document.getElementById('ordersTabBtn');
+            const settingsTabBtn = document.getElementById('settingsTabBtn');
+            const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+            const showAllOrdersBtn = document.getElementById('showAllOrdersBtn');
+            const cancelModify = document.getElementById('cancelModify');
+            const confirmModify = document.getElementById('confirmModify');
+            const modifyModal = document.getElementById('modifyModal');
+
+            if (customerTab) {
+                customerTab.addEventListener('click', showCustomerView);
+            }
+            if (adminTab) {
+                adminTab.addEventListener('click', showAdminView);
+            }
+
+            if (nextStepBtn) {
+                nextStepBtn.addEventListener('click', function () {
+                    if (validateStep1()) {
+                        showStep(2);
+                        generateDateGrid();
+                    }
+                });
+            }
+
+            if (prevStepBtn) {
+                prevStepBtn.addEventListener('click', function () {
+                    showStep(1);
+                });
+            }
+
+            if (submitBtn) {
+                submitBtn.addEventListener('click', submitBooking);
+            }
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', resetForm);
+            }
+
+            if (keyArrangement) {
+                keyArrangement.addEventListener('change', function () {
+                    const keyOtherSection = document.getElementById('keyOtherSection');
+                    if (this.value === 'Other | 其他') {
+                        keyOtherSection.style.display = 'block';
+                    } else {
+                        keyOtherSection.style.display = 'none';
+                        const keyOtherDetails = document.getElementById('keyOtherDetails');
+                        if (keyOtherDetails) {
+                            keyOtherDetails.value = '';
+                        }
+                    }
+                });
+            }
+
+            if (prevMonth) {
+                prevMonth.addEventListener('click', function () {
+                    appData.currentCalendarDate.setMonth(appData.currentCalendarDate.getMonth() - 1);
+                    generateCalendar();
+                });
+            }
+
+            if (nextMonth) {
+                nextMonth.addEventListener('click', function () {
+                    appData.currentCalendarDate.setMonth(appData.currentCalendarDate.getMonth() + 1);
+                    generateCalendar();
+                });
+            }
+
+            if (ordersTabBtn) {
+                ordersTabBtn.addEventListener('click', showOrdersTab);
+            }
+
+            if (settingsTabBtn) {
+                settingsTabBtn.addEventListener('click', showSettingsTab);
+            }
+
+            if (saveSettingsBtn) {
+                saveSettingsBtn.addEventListener('click', updateSettings);
+            }
+
+            if (showAllOrdersBtn) {
+                showAllOrdersBtn.addEventListener('click', function () {
+                    appData.selectedCalendarDate = null;
+                    appData.showAllOrders = true;
+                    this.style.display = 'none';
+                    generateCalendar();
+                    loadOrdersList();
+                });
+            }
+
+            if (cancelModify) {
+                cancelModify.addEventListener('click', hideModifyModal);
+            }
+
+            if (confirmModify) {
+                confirmModify.addEventListener('click', confirmModifyTime);
+            }
+
+            if (modifyModal) {
+                modifyModal.addEventListener('click', function (e) {
+                    if (e.target === this) {
+                        hideModifyModal();
+                    }
+                });
+            }
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('🚀 页面加载完成，开始初始化...');
+
+            setTimeout(async function () {
+                try {
+                    await loadData();
+
+                    bindEvents();
+                    showCustomerView();
+
+                    const serviceType = document.getElementById('serviceType');
+                    const keyArrangement = document.getElementById('keyArrangement');
+
+                    if (serviceType) {
+                        serviceType.selectedIndex = 0;
+                    }
+                    if (keyArrangement) {
+                        keyArrangement.selectedIndex = 0;
+                    }
+
+                    console.log('🎉 初始化完成！云端数据已加载');
+
+                    if (appData.bookings.length > 0) {
+                        console.log(`📊 系统中有 ${appData.bookings.length} 个订单`);
+                    }
+
+                } catch (error) {
+                    console.error('❌ 初始化时出错:', error);
+                    setTimeout(function () {
+                        bindEvents();
+                        showCustomerView();
+                    }, 1000);
+                }
+            }, 300);
+        });
+    </script>
