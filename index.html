@@ -1,3 +1,19 @@
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex space-x-3 mt-6">
+                <button id="cancelModify" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                    Cancel | 取消
+                </button>
+                <button id="confirmModify" class="flex-1 btn-primary text-white px-4 py-2 rounded-lg">
+                    Confirm | 确认
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
         // 应用数据
         const appData = {
             bookings: [],
@@ -12,7 +28,9 @@
             currentCalendarDate: new Date(),
             selectedCalendarDate: null,
             showAllOrders: true,
-            currentModifyingBookingId: null
+            currentModifyingBookingId: null,
+            lastCloudSync: null, // 添加最后同步时间记录
+            autoRefreshInterval: null // 添加自动刷新定时器
         };
 
         // 🌐 云端数据存储函数
@@ -35,6 +53,7 @@
                 
                 if (response.ok) {
                     console.log('✅ 云端保存成功!', result);
+                    appData.lastCloudSync = new Date();
                     return true;
                 } else {
                     console.error('❌ 云端保存失败:', result);
@@ -61,6 +80,7 @@
                         appData.bookings = data.bookings || [];
                         appData.settings = { ...appData.settings, ...data.settings };
                         appData.nextOrderNumber = data.nextOrderNumber || 1;
+                        appData.lastCloudSync = new Date();
                         
                         console.log(`✅ 成功加载 ${appData.bookings.length} 个订单`);
                         return true;
@@ -126,7 +146,38 @@
                 }
             }
             
+            // 更新界面
+            if (document.getElementById('welcomeText')) {
+                document.getElementById('welcomeText').textContent = appData.settings.welcomeMessage;
+            }
+            
             console.log('✅ 数据加载完成');
+        }
+
+        // 🔄 启动自动刷新（仅在管理员界面）
+        function startAutoRefresh() {
+            if (appData.autoRefreshInterval) {
+                clearInterval(appData.autoRefreshInterval);
+            }
+            
+            // 每30秒自动刷新一次数据
+            appData.autoRefreshInterval = setInterval(async () => {
+                if (document.getElementById('adminView').style.display !== 'none') {
+                    console.log('🔄 自动刷新数据...');
+                    await loadFromCloud();
+                    loadOrdersList();
+                    generateCalendar();
+                    updateStats();
+                }
+            }, 30000);
+        }
+
+        // 🛑 停止自动刷新
+        function stopAutoRefresh() {
+            if (appData.autoRefreshInterval) {
+                clearInterval(appData.autoRefreshInterval);
+                appData.autoRefreshInterval = null;
+            }
         }
 
         // 视图切换
@@ -135,9 +186,10 @@
             document.getElementById('adminView').style.display = 'none';
             document.getElementById('customerTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
             document.getElementById('adminTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
+            stopAutoRefresh(); // 停止自动刷新
         }
 
-        function showAdminView() {
+        async function showAdminView() {
             const password = prompt('Please enter admin password | 请输入管理员密码:');
             if (password === 'admin123') {
                 document.getElementById('customerView').style.display = 'none';
@@ -145,8 +197,11 @@
                 document.getElementById('adminTab').className = 'nav-active px-4 py-2 rounded-lg font-semibold transition-all';
                 document.getElementById('customerTab').className = 'nav-inactive px-4 py-2 rounded-lg font-semibold transition-all';
                 
+                // 进入管理员界面时立即刷新数据
+                await loadFromCloud();
                 generateCalendar();
                 showOrdersTab();
+                startAutoRefresh(); // 启动自动刷新
             } else if (password !== null) {
                 alert('Incorrect password! | 密码错误！');
             }
@@ -205,7 +260,10 @@
         }
 
         // 生成日期网格
-        function generateDateGrid() {
+        async function generateDateGrid() {
+            // 先刷新数据以获取最新预约情况
+            await loadFromCloud();
+            
             const dates = generateAvailableDates();
             const dateGrid = document.getElementById('dateGrid');
             dateGrid.innerHTML = '';
@@ -317,7 +375,7 @@
         // 提交预约
         async function submitBooking() {
             const orderNum = appData.nextOrderNumber.toString().padStart(3, '0');
-            const newOrderNumber = `INV-InventoryHub-${orderNum}`;
+            const newOrderNumber = `INV-JOYA-${orderNum}`;
             appData.nextOrderNumber++;
 
             let keyArrangement = document.getElementById('keyArrangement').value;
@@ -385,6 +443,8 @@
             if (booking) {
                 console.log('🔄 正在确认订单:', booking.orderNumber);
                 booking.status = 'confirmed';
+                booking.confirmedDate = booking.preferredDate;
+                booking.confirmedTimeSlot = booking.preferredTimeSlot;
                 await saveData();
                 loadOrdersList();
                 generateCalendar();
@@ -693,27 +753,6 @@
 
         // 绑定订单按钮事件
         function bindOrderButtons() {
-            document.querySelectorAll('.confirm-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    confirmBooking(bookingId);
-                });
-            });
-            
-            document.querySelectorAll('.cancel-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    cancelBooking(bookingId);
-                });
-            });
-
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const bookingId = parseInt(this.dataset.bookingId);
-                    deleteBooking(bookingId);
-                });
-            });
-
             document.querySelectorAll('.modify-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const bookingId = parseInt(this.dataset.bookingId);
@@ -770,6 +809,8 @@
             
             booking.preferredDate = newDate;
             booking.preferredTimeSlot = newTimeSlot;
+            booking.confirmedDate = newDate;
+            booking.confirmedTimeSlot = newTimeSlot;
             
             await saveData();
             
@@ -1006,7 +1047,28 @@
         });
     </script>
 </body>
-</html><!DOCTYPE html>
+</html>confirm-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    confirmBooking(bookingId);
+                });
+            });
+            
+            document.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    cancelBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const bookingId = parseInt(this.dataset.bookingId);
+                    deleteBooking(bookingId);
+                });
+            });
+
+            document.querySelectorAll('.<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1468,24 +1530,3 @@ Thank you for your trust!
                         <option value="11:30-13:00">11:30-13:00</option>
                         <option value="13:00-14:30">13:00-14:30</option>
                     </select>
-                </div>
-            </div>
-            
-            <div class="flex space-x-3 mt-6">
-                <button id="cancelModify" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                    Cancel | 取消
-                </button>
-                <button id="confirmModify" class="flex-1 btn-primary text-white px-4 py-2 rounded-lg">
-                    Confirm | 确认
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // 应用数据
-        const appData = {
-            bookings: [],
-            settings: {
-                welcomeMessage: 'Welcome to our property inspection booking system! We provide professional and caring property inspection services.',
-                noticeMessage: 'Please note:\n• Please ensure the appointment time is accurate\n• For cancellations
